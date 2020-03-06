@@ -15,16 +15,25 @@ function orgn.init()
   
   r.engine.poly_new("fg", "FreqGate", orgn.poly)
   r.engine.poly_new("glide", "Slew", orgn.poly)
+  r.engine.poly_new("fmmix", "LinMixer", orgn.poly)
   r.engine.poly_new("osca", "SineOsc", orgn.poly)
   r.engine.poly_new("oscb", "SineOsc", orgn.poly)
   r.engine.poly_new("oscc", "SineOsc", orgn.poly)
-  r.engine.poly_new("lvla", "MGain", orgn.poly)
-  r.engine.poly_new("lvlb", "MGain", orgn.poly)
-  r.engine.poly_new("lvlc", "MGain", orgn.poly)
+  r.engine.poly_new("lvla", "Amp", orgn.poly)
+  r.engine.poly_new("lvlb", "Amp", orgn.poly)
+  r.engine.poly_new("lvlc", "Amp", orgn.poly)
   r.engine.poly_new("env", "ADSREnv")
   r.engine.poly_new("amp", "Amp", orgn.poly)
+  r.engine.poly_new("lvlvel", "MGain", orgn.poly)
   r.engine.poly_new("pan", "Pan", orgn.poly)
   r.engine.poly_new("lvl", "SGain", orgn.poly)
+  
+  engine.new("lfo", "SineLFO", orgn.poly)
+  engine.new("lfop", "Amp", orgn.poly)
+  engine.new("lfolvla", "Amp", orgn.poly)
+  engine.new("lfolvlb", "Amp", orgn.poly)
+  engine.new("lfolvlc", "Amp", orgn.poly)
+  engine.new("lfosr", "Amp", orgn.poly)
   
   engine.new("soundin", "SoundIn")
   engine.new("inlvl", "SGain")
@@ -35,29 +44,45 @@ function orgn.init()
   engine.new("xfade", "XFader")
   engine.new("outlvl", "SGain")
   engine.new("soundout", "SoundOut")
-  
-  r.engine.poly_connect("fg/Frequency", "glide/In", orgn.poly)
-  r.engine.poly_connect("fg/Gate", "env/Gate", orgn.poly)
-  r.engine.poly_connect("glide/Out", "osca/FM", orgn.poly)
-  r.engine.poly_connect("glide/Out", "oscb/FM", orgn.poly)
-  r.engine.poly_connect("glide/Out", "oscc/FM", orgn.poly)
-  r.engine.poly_connect("osca/Out", "lvla/In", orgn.poly)
-  r.engine.poly_connect("oscb/Out", "lvlb/In", orgn.poly)
-  r.engine.poly_connect("oscc/Out", "lvlc/In", orgn.poly)
-  r.engine.poly_connect("lvla/Out", "amp/In", orgn.poly)
-  r.engine.poly_connect("lvlb/Out", "amp/In", orgn.poly)
-  r.engine.poly_connect("lvlc/Out", "amp/In", orgn.poly)
-  r.engine.poly_connect("env/Out", "amp/Exp", orgn.poly)
-  r.engine.poly_connect("amp/Out", "pan/In", orgn.poly)
-  r.engine.poly_connect("pan/Left", "lvl/Left", orgn.poly)
-  r.engine.poly_connect("pan/Right", "lvl/Right", orgn.poly)
 
   for voicenum=1, orgn.poly do
     engine.connect("lvl"..voicenum.."/Left", "decil/In")
     engine.connect("lvl"..voicenum.."/Right", "decir/In")
     engine.connect("lvl"..voicenum.."/Left", "xfade/InBLeft")
     engine.connect("lvl"..voicenum.."/Right", "xfade/InBRight")
+    
+    engine.connect("lfop/Out", "fmmix"..voicenum.."/In2")
+    engine.connect("lfolvla/Out", "lvla"..voicenum.."/Lin")
+    engine.connect("lfolvlb/Out", "lvlb"..voicenum.."/Lin")
+    engine.connect("lfolvlc/Out", "lvlc"..voicenum.."/Lin")
   end
+  
+  r.engine.poly_connect("fg/Frequency", "glide/In", orgn.poly)
+  r.engine.poly_connect("fg/Gate", "env/Gate", orgn.poly)
+  r.engine.poly_connect("glide/Out", "fmmix/In1", orgn.poly)
+  r.engine.poly_connect("fmmix/Out", "osca/FM", orgn.poly)
+  r.engine.poly_connect("fmmix/Out", "oscb/FM", orgn.poly)
+  r.engine.poly_connect("fmmix/Out", "oscc/FM", orgn.poly)
+  r.engine.poly_connect("osca/Out", "lvla/In", orgn.poly)
+  r.engine.poly_connect("oscb/Out", "lvlb/In", orgn.poly)
+  r.engine.poly_connect("oscc/Out", "lvlc/In", orgn.poly)
+  r.engine.poly_connect("oscc/Out", "osca/PM", orgn.poly)
+  r.engine.poly_connect("oscc/Out", "oscb/PM", orgn.poly)
+  r.engine.poly_connect("oscb/Out", "oscc/PM", orgn.poly)
+  r.engine.poly_connect("lvla/Out", "amp/In", orgn.poly)
+  r.engine.poly_connect("lvlb/Out", "amp/In", orgn.poly)
+  r.engine.poly_connect("lvlc/Out", "amp/In", orgn.poly)
+  r.engine.poly_connect("env/Out", "amp/Exp", orgn.poly)
+  r.engine.poly_connect("amp/Out", "lvlvel/In", orgn.poly)
+  r.engine.poly_connect("lvlvel/Out", "pan/In", orgn.poly)
+  r.engine.poly_connect("pan/Left", "lvl/Left", orgn.poly)
+  r.engine.poly_connect("pan/Right", "lvl/Right", orgn.poly)
+  
+  engine.connect("lfo/Out", "lfop/In")
+  engine.connect("lfo/Out", "lfolvla/In")
+  engine.connect("lfo/Out", "lfolvlb/In")
+  engine.connect("lfo/Out", "lfolvlc/In")
+  engine.connect("lfo/Out", "lfosr/In")
   
   engine.connect("soundin/Left", "inlvl/Left")
   engine.connect("soundin/Right", "inlvl/Right")
@@ -77,6 +102,14 @@ function orgn.init()
   r.engine.poly_set("osca.FM", 1, orgn.poly)
   r.engine.poly_set("oscb.FM", 1, orgn.poly)
   r.engine.poly_set("oscc.FM", 1, orgn.poly)
+  
+  util.make_param("lvl", "SGain", "Gain", orgn.poly, {}, "lvl abc")
+  util.make_param("lvla", "Amp", "Level", orgn.poly, {}, "lvl a")
+  util.make_param("lvlb", "Amp", "Level", orgn.poly, {}, "lvl b")
+  util.make_param("lvla", "Amp", "Level", orgn.poly, {}, "lvl c")
+  util.make_param("osca", "SineOsc", "PM", orgn.poly, {}, "pm c -> a")
+  util.make_param("oscb", "SineOsc", "PM", orgn.poly, {}, "pm c -> b")
+  util.make_param("oscc", "SineOsc", "PM", orgn.poly, {}, "pm c <- b")
   
   params:read()
 end
@@ -107,6 +140,15 @@ orgn.scales = { -- 4 different scales, go on & change em! can be any length. be 
 orgn.vel = function()
   return 0.8 + math.random() * 0.2 -- random logic that genrates a new velocity for each key press
 end
+
+--[[
+
+scale
+glide time 0 0.1s 0.3s 1s
+osc c oct 0 1 2 3 7
+envelope shape |\  / \  /|
+
+]]--
 
 orgn.controls = crop:new{ -- controls at the top of the grid. generated using the crops lib - gr8 place to add stuff !
   scale = value:new{ v = 1, p = { { 1, 4 }, 1 } }
