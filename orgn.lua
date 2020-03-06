@@ -22,7 +22,7 @@ function orgn.init()
   r.engine.poly_new("lvla", "Amp", orgn.poly)
   r.engine.poly_new("lvlb", "Amp", orgn.poly)
   r.engine.poly_new("lvlc", "Amp", orgn.poly)
-  r.engine.poly_new("env", "ADSREnv")
+  r.engine.poly_new("env", "ADSREnv", orgn.poly)
   r.engine.poly_new("amp", "Amp", orgn.poly)
   r.engine.poly_new("lvlvel", "MGain", orgn.poly)
   r.engine.poly_new("pan", "Pan", orgn.poly)
@@ -98,26 +98,97 @@ function orgn.init()
   r.engine.poly_set("oscc.FM", 1, orgn.poly)
   r.engine.poly_set("ptrack.Level", 1, orgn.poly)
   
-  util.make_param("lvl", "SGain", "Gain", orgn.poly, {}, "lvl abc")
-  util.make_param("lvla", "Amp", "Level", orgn.poly, {}, "lvl a")
-  util.make_param("lvlb", "Amp", "Level", orgn.poly, {}, "lvl b")
-  util.make_param("lvla", "Amp", "Level", orgn.poly, {}, "lvl c")
-  util.make_param("osca", "SineOsc", "PM", orgn.poly, {}, "pm c -> a")
-  util.make_param("oscb", "SineOsc", "PM", orgn.poly, {}, "pm c -> b")
-  util.make_param("oscc", "SineOsc", "PM", orgn.poly, {}, "pm c <- b")
+  r.util.make_param("lvl", "SGain", "Gain", orgn.poly, { default=0.0 }, "lvl abc")
+  r.util.make_param("lvla", "Amp", "Level", orgn.poly, { default=1 }, "lvl a")
+  r.util.make_param("lvlb", "Amp", "Level", orgn.poly, { default=0.3 }, "lvl b")
+  r.util.make_param("lvla", "Amp", "Level", orgn.poly, { default=0.3 }, "lvl c")
+  r.util.make_param("osca", "SineOsc", "PM", orgn.poly, {}, "pm c -> a")
+  r.util.make_param("oscb", "SineOsc", "PM", orgn.poly, {}, "pm c -> b")
+  r.util.make_param("oscc", "SineOsc", "PM", orgn.poly, {}, "pm c <- b")
   
-  ---- TODO: envolope
-  ---- TODO: fx
-  ---- TODO: lfo
+  params:add_separator()
   
-  params:read()
+  function update_envelope()
+    local adsr = { Attack = 0, Decay = 0, Sustain = 0, Release = 0 }
+    local slopes = {}
+    local mode = params:get("env_mode")
+    local shape = params:get("env_shape")
+    local size = params:get("env_size") * 1000 -- s to ms
+    
+    if mode == 1 then -- gate
+      adsr.Sustain = 1
+      slopes = { "Attack", "Release" }
+    elseif mode == 2 then -- trig
+      slopes = { "Attack", "Decay" }
+    end
+    
+    if shape == 1 then -- |\
+      adsr[slopes[2]] = size
+    elseif shape == 2 then -- /\
+      adsr[slopes[1]] = size
+      adsr[slopes[2]] = size
+    elseif shape == 3 then -- /|
+      adsr[slopes[1]] = size
+    end
+    
+    local set = ""
+    for i = 1, orgn.poly do
+      for k,v in pairs(adsr) do
+        set = set .. "env" .. i .. "." .. k .. " " .. v .. " "
+      end
+    end
+    
+    engine.bulkset(set)
+  end
+  
+  params:add { type="control", id="env_size", name="env size", controlspec=controlspec.new(0.001, 2, 'exp', 0, 0.5, "s"), action=update_envelope }
+  params:add { type="option", id="env_shape", name="env shape", options={ "|\\", "/\\", "/|" }, action=update_envelope }
+  params:add { type="option", id="env_mode", name="env mode", options={ "gate","trig" }, action=update_envelope }
+  
+  params:add_separator()
+  
+  r.util.make_param("lfo1", "SineLFO", "Frequency", 1, {}, "lfo freq")
+  r.util.make_param("lfoamp1", "Amp", "Level", 1, {}, "lfo depth")
+  
+  params:add_separator()
+  
+  r.util.make_param("xfade", "XFader", "Fade", 1, {}, "dry/wet")
+  
+  params:add { 
+    type="control", id="samplerate", name="sample rate", controlspec=r.specs.Decimator.Rate,
+    action=function(v)
+      engine.bulkset("decil.Rate " .. v .. " decir.Rate " .. v)
+    end 
+  }
+  params:add { 
+    type="control", id="bitdepth", name="bit depth", controlspec=r.specs.Decimator.Depth,
+    action=function(v)
+      engine.bulkset("decil.Depth " .. v .. " decir.Depth " .. v)
+    end 
+  }
+  params:add { 
+    type="control", id="smoothing", name="smoothing", controlspec=r.specs.Decimator.Smooth,
+    action=function(v)
+      engine.bulkset("decil.Smooth " .. v .. " decir.Smooth " .. v)
+    end
+  }
+  params:add {
+    type="control", id="eqfreq", name="eq freq", controlspec=r.specs.EQBPFilter.Frequency,
+    action=function(v) engine.bulkset("eqr.Smooth " .. v .. " eql.Smooth " .. v) end
+  }
+  params:add {
+    type="control", id="eqwidth", name="eq width", controlspec=r.specs.EQBPFilter.Bandwidth,
+    action=function(v) engine.bulkset("eqr.Bandwidth " .. v .. " eql.Bandwidth " .. v) end
+  }
+  
+  -- params:read()
 end
 
 orgn.noteon = function(note)
   local slot = orgn.voice:get()
   orgn.voice:push(note, slot)
   
-  engine.bulkset("FreqGate"..slot.id..".Gate 1 FreqGate"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
+  engine.bulkset("fg"..slot.id..".Gate 1 fg"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
 end
 
 orgn.noteoff = function(note)
@@ -125,7 +196,7 @@ orgn.noteoff = function(note)
   if slot then
     
     orgn.voice:release(slot)
-    engine.bulkset("FreqGate"..slot.id..".Gate 0")
+    engine.bulkset("fg"..slot.id..".Gate 0")
   end
 end
 
@@ -219,7 +290,7 @@ end
 orgn.cleanup = function()
   
   --save paramset before script close
-  params:write()
+  -- params:write()
 end
 
 -------------------------- globals - feel free to redefine in referenced script
