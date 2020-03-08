@@ -11,6 +11,8 @@ orgn = {}
 orgn.poly = 3
 orgn.voice = voice_lib.new(orgn.poly)
 
+ADSR = { Attack = 0, Decay = 0, Sustain = 0, Release = 0 }
+
 function orgn.update_envelope(n, a, d, s, r)
     local adsr = { Attack = 0, Decay = 0, Sustain = 0, Release = 0 }
     local slopes = {}
@@ -38,6 +40,8 @@ function orgn.update_envelope(n, a, d, s, r)
     if d then adsr.Decay = d end
     if s then adsr.Sustain = s end
     if r then adsr.Release = r end
+    
+    ADSR = adsr
     
     local i1 = 1
     local i2 = orgn.poly
@@ -115,16 +119,13 @@ function orgn.init()
   r.engine.poly_connect("pan/Right", "lvl/Right", orgn.poly)
 
   for voicenum=1, orgn.poly do
-    -- engine.connect("lvl"..voicenum.."/Left", "decil/In")
-    -- engine.connect("lvl"..voicenum.."/Right", "decir/In")
-    -- engine.connect("lvl"..voicenum.."/Left", "xfade/InBLeft")
-    -- engine.connect("lvl"..voicenum.."/Right", "xfade/InBRight")
+    engine.connect("lvl"..voicenum.."/Left", "decil/In")
+    engine.connect("lvl"..voicenum.."/Right", "decir/In")
+    engine.connect("lvl"..voicenum.."/Left", "xfade/InALeft")
+    engine.connect("lvl"..voicenum.."/Right", "xfade/InARight")
     
-    -- engine.connect("outlvl/Left", "soundout/Left")
-    -- engine.connect("outlvl/Right", "soundout/Right")
-    
-    engine.connect("lvl"..voicenum.."/Left", "soundout/Left")
-    engine.connect("lvl"..voicenum.."/Right", "soundout/Right")
+    -- engine.connect("lvl"..voicenum.."/Left", "soundout/Left")
+    -- engine.connect("lvl"..voicenum.."/Right", "soundout/Right")
     
     engine.connect("lfoamp1/Out", "ptrack"..voicenum.."/In")
   end
@@ -135,21 +136,23 @@ function orgn.init()
   -- engine.connect("soundin/Right", "inlvl/Right")
   -- engine.connect("inlvl/Left", "decil/In")
   -- engine.connect("inlvl/Right", "decir/In")
-  -- engine.connect("inlvl/Left", "xfade/InBLeft")
-  -- engine.connect("inlvl/Right", "xfade/InBRight")
-  -- engine.connect("decil/Out", "eql/In")
-  -- engine.connect("decir/Out", "eqr/In")
-  -- engine.connect("eql/Out", "xfade/InALeft")
-  -- engine.connect("eqr/Out", "xfade/InARight")
-  -- engine.connect("xfade/Left", "outlvl/Left")
-  -- engine.connect("xfade/Right", "outlvl/Right")
-  -- engine.connect("outlvl/Left", "soundout/Left")
-  -- engine.connect("outlvl/Right", "soundout/Right")
+  -- engine.connect("inlvl/Left", "xfade/InALeft")
+  -- engine.connect("inlvl/Right", "xfade/InARight")
+  engine.connect("decil/Out", "eql/In")
+  engine.connect("decir/Out", "eqr/In")
+  engine.connect("eql/Out", "xfade/InBLeft")
+  engine.connect("eqr/Out", "xfade/InBRight")
+  engine.connect("xfade/Left", "outlvl/Left")
+  engine.connect("xfade/Right", "outlvl/Right")
+  engine.connect("outlvl/Left", "soundout/Left")
+  engine.connect("outlvl/Right", "soundout/Right")
   
   r.engine.poly_set("osca.FM", 1, orgn.poly)
   r.engine.poly_set("oscb.FM", 1, orgn.poly)
   r.engine.poly_set("oscc.FM", 1, orgn.poly)
   r.engine.poly_set("ptrack.Level", 1, orgn.poly)
+  
+  engine.bulkset("xfade.TrimA 1 xfade.TrimB 1 xfade.Master 1")
   
   r.util.make_param("lvl", "SGain", "Gain", orgn.poly, { default=0.0 }, "lvl abc")
   r.util.make_param("lvla", "Amp", "Level", orgn.poly, { default=1 }, "lvl a")
@@ -162,11 +165,26 @@ function orgn.init()
   
   params:add_separator()
   
-  function env_action()
-    -- engine.bulkset(orgn.update_envelope())
+  local function send_env()
+    engine.bulkset(orgn.update_envelope())
+    
+    if em then 
+      -- em:stop()
+      metro.free(em.id) 
+    end
   end
   
-  params:add { type="control", id="env_size", name="env size", controlspec=controlspec.new(0.001, 2, 'exp', 0, 0.5, "s"), action=env_action }
+  em = nil
+  function env_action()
+    if em then 
+      -- em:stop()
+      metro.free(em.id) 
+    end
+    em = metro.init(send_env)
+    em:start( 0.1, 1)
+  end
+  
+  params:add { type="control", id="env_size", name="env size", controlspec=controlspec.new(0.001, 4, 'exp', 0, 0.5, "s"), action=env_action }
   params:add { type="option", id="env_shape", name="env shape", options={ "|\\", "/\\", "/|" }, action=env_action }
   params:add { type="option", id="env_mode", name="env mode", options={ "gate","trig" }, action=env_action }
   
@@ -199,15 +217,19 @@ function orgn.init()
   }
   params:add {
     type="control", id="eqfreq", name="eq freq", controlspec=r.specs.EQBPFilter.Frequency,
-    action=function(v) engine.bulkset("eqr.Smooth " .. v .. " eql.Smooth " .. v) end
+    action=function(v) engine.bulkset("eqr.Frequency " .. v .. " eql.Frequency " .. v) end
   }
   params:add {
     type="control", id="eqwidth", name="eq width", controlspec=r.specs.EQBPFilter.Bandwidth,
     action=function(v) engine.bulkset("eqr.Bandwidth " .. v .. " eql.Bandwidth " .. v) end
   }
   
+  r.util.make_param("outlvl", "SGain", "Gain", orgn.poly, { default=0.0 }, "lvl out")
+  
   params:read()
   params:bang()
+  
+  send_env()
 end
 
 orgn.stolen = {}
@@ -216,26 +238,34 @@ for i = 1, orgn.poly do
   orgn.stolen[i] = false
 end
 
-m = nil
+nm = nil
 
 orgn.noteon = function(note)
   local slot = orgn.voice:get()
   orgn.voice:push(note, slot)
   
-  engine.bulkset(orgn.update_envelope(slot.id))
-  -- engine.set("env"..slot.id..".Gate", -1)
+  -- engine.bulkset(orgn.update_envelope(slot.id))
+  engine.set("env"..slot.id..".Gate", -1)
   
   local function on()
+    print("on", slot.id)
+    
     engine.bulkset("env"..slot.id..".Gate 1 fg"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
+    if nm then 
+      -- nm:stop()
+      metro.free(nm.id)
+    end
   end
   
   if orgn.stolen[slot.id] then
-    m = metro.init(on)
-    m:start( 0.1, 1)
+    nm = metro.init(on)
+    nm:start( 0.1, 1)
   else 
+    -- m = metro.init(on)
+    -- m:start( 0.03, 1)
     on()
     -- if m then metro.free(m.id) end ---- wtf ????????
-    metro.free_all()
+    -- metro.free_all()
   end
 end
 
@@ -245,12 +275,28 @@ function k()
   end
 end
 
+-- rm = nil
+
 orgn.noteoff = function(note)
   local slot = orgn.voice:pop(note)
-  if slot then 
-    orgn.stolen[slot.id] = false
-    orgn.voice:release(slot)
+  
+  -- local function off()
+  --   print("off", slot.id)
+    
+  --   orgn.voice:release(slot)
+  --   orgn.stolen[slot.id] = false
+  --   if rm then
+  --     metro.free(rm.id)
+  --   end
+  -- end
+  
+  if slot then
     engine.bulkset("env"..slot.id..".Gate 0")
+    
+    orgn.voice:release(slot)
+    orgn.stolen[slot.id] = false
+    -- rm = metro.init(off)
+    -- rm:start(ADSR.Release / 10000, 1)
   end
 end
 
