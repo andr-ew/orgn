@@ -8,10 +8,57 @@ r = require 'r/lib/r'
 
 orgn = {}
 
-orgn.poly = 4
+orgn.poly = 3
 orgn.voice = voice_lib.new(orgn.poly)
 
+function orgn.update_envelope(n, a, d, s, r)
+    local adsr = { Attack = 0, Decay = 0, Sustain = 0, Release = 0 }
+    local slopes = {}
+    local mode = params:get("env_mode")
+    local shape = params:get("env_shape")
+    local size = params:get("env_size") * 1000 -- s to ms
+    
+    if mode == 1 then -- gate
+      adsr.Sustain = 1
+      slopes = { "Attack", "Release" }
+    elseif mode == 2 then -- trig
+      slopes = { "Attack", "Decay" }
+    end
+    
+    if shape == 1 then -- |\
+      adsr[slopes[2]] = size
+    elseif shape == 2 then -- /\
+      adsr[slopes[1]] = size
+      adsr[slopes[2]] = size * 3
+    elseif shape == 3 then -- /|
+      adsr[slopes[1]] = size
+    end
+    
+    if a then adsr.Attack = a end
+    if d then adsr.Decay = d end
+    if s then adsr.Sustain = s end
+    if r then adsr.Release = r end
+    
+    local i1 = 1
+    local i2 = orgn.poly
+    
+    if n then
+      i1 = n
+      i2 = n
+    end
+    
+    local set = ""
+    for i = i1, i2 do
+      for k,v in pairs(adsr) do
+        set = set .. "env" .. i .. "." .. k .. " " .. v .. " "
+      end
+    end
+    return set
+  end
+
 function orgn.init()
+  
+  engine.trace(1)
   
   r.engine.poly_new("fg", "FreqGate", orgn.poly)
   r.engine.poly_new("glide", "Slew", orgn.poly)
@@ -47,7 +94,7 @@ function orgn.init()
   engine.new("soundout", "SoundOut")
   
   r.engine.poly_connect("fg/Frequency", "glide/In", orgn.poly)
-  r.engine.poly_connect("fg/Gate", "env/Gate", orgn.poly)
+  -- r.engine.poly_connect("fg/Gate", "env/Gate", orgn.poly)
   r.engine.poly_connect("glide/Out", "ptrack/In", orgn.poly)
   r.engine.poly_connect("ptrack/Out", "osca/FM", orgn.poly)
   r.engine.poly_connect("ptrack/Out", "oscb/FM", orgn.poly)
@@ -68,30 +115,36 @@ function orgn.init()
   r.engine.poly_connect("pan/Right", "lvl/Right", orgn.poly)
 
   for voicenum=1, orgn.poly do
-    engine.connect("lvl"..voicenum.."/Left", "decil/In")
-    engine.connect("lvl"..voicenum.."/Right", "decir/In")
-    engine.connect("lvl"..voicenum.."/Left", "xfade/InBLeft")
-    engine.connect("lvl"..voicenum.."/Right", "xfade/InBRight")
+    -- engine.connect("lvl"..voicenum.."/Left", "decil/In")
+    -- engine.connect("lvl"..voicenum.."/Right", "decir/In")
+    -- engine.connect("lvl"..voicenum.."/Left", "xfade/InBLeft")
+    -- engine.connect("lvl"..voicenum.."/Right", "xfade/InBRight")
+    
+    -- engine.connect("outlvl/Left", "soundout/Left")
+    -- engine.connect("outlvl/Right", "soundout/Right")
+    
+    engine.connect("lvl"..voicenum.."/Left", "soundout/Left")
+    engine.connect("lvl"..voicenum.."/Right", "soundout/Right")
     
     engine.connect("lfoamp1/Out", "ptrack"..voicenum.."/In")
   end
   
   engine.connect("lfo1/Out", "lfoamp1/In")
   
-  engine.connect("soundin/Left", "inlvl/Left")
-  engine.connect("soundin/Right", "inlvl/Right")
-  engine.connect("inlvl/Left", "decil/In")
-  engine.connect("inlvl/Right", "decir/In")
-  engine.connect("inlvl/Left", "xfade/InBLeft")
-  engine.connect("inlvl/Right", "xfade/InBRight")
-  engine.connect("decil/Out", "eql/In")
-  engine.connect("decir/Out", "eqr/In")
-  engine.connect("eql/Out", "xfade/InALeft")
-  engine.connect("eqr/Out", "xfade/InARight")
-  engine.connect("xfade/Left", "outlvl/Left")
-  engine.connect("xfade/Right", "outlvl/Right")
-  engine.connect("outlvl/Left", "soundout/Left")
-  engine.connect("outlvl/Right", "soundout/Right")
+  -- engine.connect("soundin/Left", "inlvl/Left")
+  -- engine.connect("soundin/Right", "inlvl/Right")
+  -- engine.connect("inlvl/Left", "decil/In")
+  -- engine.connect("inlvl/Right", "decir/In")
+  -- engine.connect("inlvl/Left", "xfade/InBLeft")
+  -- engine.connect("inlvl/Right", "xfade/InBRight")
+  -- engine.connect("decil/Out", "eql/In")
+  -- engine.connect("decir/Out", "eqr/In")
+  -- engine.connect("eql/Out", "xfade/InALeft")
+  -- engine.connect("eqr/Out", "xfade/InARight")
+  -- engine.connect("xfade/Left", "outlvl/Left")
+  -- engine.connect("xfade/Right", "outlvl/Right")
+  -- engine.connect("outlvl/Left", "soundout/Left")
+  -- engine.connect("outlvl/Right", "soundout/Right")
   
   r.engine.poly_set("osca.FM", 1, orgn.poly)
   r.engine.poly_set("oscb.FM", 1, orgn.poly)
@@ -105,45 +158,17 @@ function orgn.init()
   r.util.make_param("osca", "SineOsc", "PM", orgn.poly, {}, "pm c -> a")
   r.util.make_param("oscb", "SineOsc", "PM", orgn.poly, {}, "pm c -> b")
   r.util.make_param("oscc", "SineOsc", "PM", orgn.poly, {}, "pm c <- b")
+  r.util.make_param("pan", "Pan", "Position", orgn.poly, {}, "pan")
   
   params:add_separator()
   
-  function update_envelope()
-    local adsr = { Attack = 0, Decay = 0, Sustain = 0, Release = 0 }
-    local slopes = {}
-    local mode = params:get("env_mode")
-    local shape = params:get("env_shape")
-    local size = params:get("env_size") * 1000 -- s to ms
-    
-    if mode == 1 then -- gate
-      adsr.Sustain = 1
-      slopes = { "Attack", "Release" }
-    elseif mode == 2 then -- trig
-      slopes = { "Attack", "Decay" }
-    end
-    
-    if shape == 1 then -- |\
-      adsr[slopes[2]] = size
-    elseif shape == 2 then -- /\
-      adsr[slopes[1]] = size
-      adsr[slopes[2]] = size
-    elseif shape == 3 then -- /|
-      adsr[slopes[1]] = size
-    end
-    
-    local set = ""
-    for i = 1, orgn.poly do
-      for k,v in pairs(adsr) do
-        set = set .. "env" .. i .. "." .. k .. " " .. v .. " "
-      end
-    end
-    
-    engine.bulkset(set)
+  function env_action()
+    -- engine.bulkset(orgn.update_envelope())
   end
   
-  params:add { type="control", id="env_size", name="env size", controlspec=controlspec.new(0.001, 2, 'exp', 0, 0.5, "s"), action=update_envelope }
-  params:add { type="option", id="env_shape", name="env shape", options={ "|\\", "/\\", "/|" }, action=update_envelope }
-  params:add { type="option", id="env_mode", name="env mode", options={ "gate","trig" }, action=update_envelope }
+  params:add { type="control", id="env_size", name="env size", controlspec=controlspec.new(0.001, 2, 'exp', 0, 0.5, "s"), action=env_action }
+  params:add { type="option", id="env_shape", name="env shape", options={ "|\\", "/\\", "/|" }, action=env_action }
+  params:add { type="option", id="env_mode", name="env mode", options={ "gate","trig" }, action=env_action }
   
   params:add_separator()
   
@@ -181,23 +206,59 @@ function orgn.init()
     action=function(v) engine.bulkset("eqr.Bandwidth " .. v .. " eql.Bandwidth " .. v) end
   }
   
-  -- params:read()
+  params:read()
+  params:bang()
 end
+
+orgn.stolen = {}
+
+for i = 1, orgn.poly do
+  orgn.stolen[i] = false
+end
+
+m = nil
 
 orgn.noteon = function(note)
   local slot = orgn.voice:get()
   orgn.voice:push(note, slot)
   
-  engine.bulkset("fg"..slot.id..".Gate 1 fg"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
+  engine.bulkset(orgn.update_envelope(slot.id))
+  -- engine.set("env"..slot.id..".Gate", -1)
+  
+  local function on()
+    engine.bulkset("env"..slot.id..".Gate 1 fg"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
+  end
+  
+  if orgn.stolen[slot.id] then
+    m = metro.init(on)
+    m:start( 0.1, 1)
+  else 
+    on()
+    -- if m then metro.free(m.id) end ---- wtf ????????
+    metro.free_all()
+  end
+end
+
+function k()
+  for i = 1, orgn.poly do
+    engine.bulkset("env"..i..".Gate -1")
+  end
 end
 
 orgn.noteoff = function(note)
   local slot = orgn.voice:pop(note)
-  if slot then
-    
+  if slot then 
+    orgn.stolen[slot.id] = false
     orgn.voice:release(slot)
-    engine.bulkset("fg"..slot.id..".Gate 0")
+    engine.bulkset("env"..slot.id..".Gate 0")
   end
+end
+
+orgn.voice.will_steal = function(slot)
+  -- print("steal", slot.id, orgn.stolen[1], orgn.stolen[2], orgn.stolen[3]) --, orgn.update_envelope(slot.id, 0, 0, 1, 0))
+  print("steal", slot.id)
+  orgn.stolen[slot.id] = true
+  engine.set("env"..slot.id..".Gate", -1)
 end
 
 orgn.scales = { -- 4 different scales, go on & change em! can be any length. be sure 2 capitalize & use the correct '♯' symbol
@@ -290,7 +351,7 @@ end
 orgn.cleanup = function()
   
   --save paramset before script close
-  -- params:write()
+  params:write()
 end
 
 -------------------------- globals - feel free to redefine in referenced script
