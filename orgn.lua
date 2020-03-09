@@ -8,7 +8,7 @@ r = require 'r/lib/r'
 
 orgn = {}
 
-orgn.poly = 3
+orgn.poly = 4
 orgn.voice = voice_lib.new(orgn.poly)
 
 ADSR = { Attack = 0, Decay = 0, Sustain = 0, Release = 0 }
@@ -31,7 +31,7 @@ function orgn.update_envelope(n, a, d, s, r)
       adsr[slopes[2]] = size
     elseif shape == 2 then -- /\
       adsr[slopes[1]] = size
-      adsr[slopes[2]] = size * 3
+      adsr[slopes[2]] = size
     elseif shape == 3 then -- /|
       adsr[slopes[1]] = size
     end
@@ -112,7 +112,7 @@ function orgn.init()
   r.engine.poly_connect("lvla/Out", "amp/In", orgn.poly)
   r.engine.poly_connect("lvlb/Out", "amp/In", orgn.poly)
   r.engine.poly_connect("lvlc/Out", "amp/In", orgn.poly)
-  r.engine.poly_connect("env/Out", "amp/Exp", orgn.poly)
+  r.engine.poly_connect("env/Out", "amp/Lin", orgn.poly)
   r.engine.poly_connect("amp/Out", "lvlvel/In", orgn.poly)
   r.engine.poly_connect("lvlvel/Out", "pan/In", orgn.poly)
   r.engine.poly_connect("pan/Left", "lvl/Left", orgn.poly)
@@ -161,37 +161,36 @@ function orgn.init()
   r.util.make_param("osca", "SineOsc", "PM", orgn.poly, {}, "pm c -> a")
   r.util.make_param("oscb", "SineOsc", "PM", orgn.poly, {}, "pm c -> b")
   r.util.make_param("oscc", "SineOsc", "PM", orgn.poly, {}, "pm c <- b")
-  r.util.make_param("pan", "Pan", "Position", orgn.poly, {}, "pan")
+  r.util.make_param("glide", "Slew", "Time", orgn.poly, {}, "glide")
+  params:add { type="control", id="width", name="width", controlspec=controlspec.UNIPOLAR }
   
   params:add_separator()
   
   local function send_env()
     engine.bulkset(orgn.update_envelope())
-    
-    if em then 
-      -- em:stop()
-      metro.free(em.id) 
-    end
   end
   
-  em = nil
+  em = metro.init()
+  
   function env_action()
-    if em then 
-      -- em:stop()
-      metro.free(em.id) 
-    end
-    em = metro.init(send_env)
+    em:stop()
+    em.event = send_env
     em:start( 0.1, 1)
+    
+    orgn.controls.shape.v = params:get("env_shape")
+    orgn.controls.mode.v = params:get("env_mode") == 2
+    
+    orgn.g_redraw(g)
   end
   
-  params:add { type="control", id="env_size", name="env size", controlspec=controlspec.new(0.001, 4, 'exp', 0, 0.5, "s"), action=env_action }
+  params:add { type="control", id="env_size", name="env size", controlspec=controlspec.new(0.001, 6, 'exp', 0, 0.5, "s"), action=env_action }
   params:add { type="option", id="env_shape", name="env shape", options={ "|\\", "/\\", "/|" }, action=env_action }
   params:add { type="option", id="env_mode", name="env mode", options={ "gate","trig" }, action=env_action }
   
   params:add_separator()
   
   r.util.make_param("lfo1", "SineLFO", "Frequency", 1, {}, "lfo freq")
-  r.util.make_param("lfoamp1", "Amp", "Level", 1, {}, "lfo depth")
+  r.util.make_param("lfoamp1", "Amp", "Level", 1, { maxval = 0.5 }, "lfo depth")
   
   params:add_separator()
   
@@ -232,40 +231,31 @@ function orgn.init()
   send_env()
 end
 
-orgn.stolen = {}
+nm = {}
 
 for i = 1, orgn.poly do
-  orgn.stolen[i] = false
+  nm[i] = metro.init()
 end
 
-nm = nil
 
 orgn.noteon = function(note)
   local slot = orgn.voice:get()
   orgn.voice:push(note, slot)
   
-  -- engine.bulkset(orgn.update_envelope(slot.id))
   engine.set("env"..slot.id..".Gate", -1)
   
   local function on()
     print("on", slot.id)
     
     engine.bulkset("env"..slot.id..".Gate 1 fg"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
-    if nm then 
-      -- nm:stop()
-      metro.free(nm.id)
-    end
   end
   
-  if orgn.stolen[slot.id] then
-    nm = metro.init(on)
-    nm:start( 0.1, 1)
-  else 
-    -- m = metro.init(on)
-    -- m:start( 0.03, 1)
+  if ADSR.Attack > 1000 then
+    nm[slot.id]:stop()
+    nm[slot.id].event = on
+    nm[slot.id]:start( 0.1, 1)
+  else
     on()
-    -- if m then metro.free(m.id) end ---- wtf ????????
-    -- metro.free_all()
   end
 end
 
@@ -275,37 +265,62 @@ function k()
   end
 end
 
--- rm = nil
+rm = {}
+
+for i = 1, orgn.poly do
+  rm[i] = metro.init()
+end
+
+gm = {}
+
+for i = 1, orgn.poly do
+  gm[i] = metro.init()
+end
 
 orgn.noteoff = function(note)
   local slot = orgn.voice:pop(note)
   
-  -- local function off()
-  --   print("off", slot.id)
-    
-  --   orgn.voice:release(slot)
-  --   orgn.stolen[slot.id] = false
-  --   if rm then
-  --     metro.free(rm.id)
-  --   end
-  -- end
-  
   if slot then
-    engine.bulkset("env"..slot.id..".Gate 0")
+    if ADSR.Attack > 1000 then
+      gm[slot.id]:stop()
+      gm[slot.id].event = function() 
+        engine.bulkset("env"..slot.id..".Gate 0") 
+      end
+      gm[slot.id]:start(0.1, 1)
+    else
+      engine.bulkset("env"..slot.id..".Gate 0")
+    end
     
-    orgn.voice:release(slot)
-    orgn.stolen[slot.id] = false
-    -- rm = metro.init(off)
-    -- rm:start(ADSR.Release / 10000, 1)
+    local function off()
+    print("off", slot.id)
+      orgn.voice:release(slot)
+    end
+    
+    -- orgn.voice:release(slot)
+    if ADSR.Release > 1000 then
+      rm[slot.id]:stop()
+      rm[slot.id].event = off
+      rm[slot.id]:start(ADSR.Release / 1000, 1)
+    else
+      off()
+    end
   end
 end
 
-orgn.voice.will_steal = function(slot)
-  -- print("steal", slot.id, orgn.stolen[1], orgn.stolen[2], orgn.stolen[3]) --, orgn.update_envelope(slot.id, 0, 0, 1, 0))
-  print("steal", slot.id)
-  orgn.stolen[slot.id] = true
-  engine.set("env"..slot.id..".Gate", -1)
-end
+--[[
+
+TODO
+
+[] random pan
+[] random velocity
+
+mappings:
+[x] scale
+[x glide time 0 0.1s 0.3s 1s
+[] osc c oct 0 1 2 3 7
+[x] envelope shape |\  / \  /|
+
+]]--
 
 orgn.scales = { -- 4 different scales, go on & change em! can be any length. be sure 2 capitalize & use the correct '♯' symbol
   { "D", "E", "G", "A", "B" },
@@ -318,18 +333,30 @@ orgn.vel = function()
   return 0.8 + math.random() * 0.2 -- random logic that genrates a new velocity for each key press
 end
 
---[[
-
-TODO:
-scale
-glide time 0 0.1s 0.3s 1s
-osc c oct 0 1 2 3 7
-envelope shape |\  / \  /|
-
-]]--
-
 orgn.controls = crop:new{ -- controls at the top of the grid. generated using the crops lib - gr8 place to add stuff !
-  scale = value:new{ v = 1, p = { { 1, 4 }, 1 } }
+  scale = value:new{ v = 1, p = { { 1, 4 }, 1 } },
+  shape = value:new{ v = 2, p = { { 5, 7 }, 1 }, 
+    event = function(self, v)
+      params:set("env_shape", v)
+  end },
+  mode = toggle:new{ v = false, p = { 8, 1 }, 
+    event = function(self, v)
+      params:set("env_mode", v and 2 or 1)
+  end },
+  glide = value:new{ v = 1, p = { { 1, 3 }, 2 }, 
+    event = function(self, v)
+      if v == 1 then
+        params:set("glide_time", 0)
+      elseif v == 2 then
+        params:set("glide_time", 0.3)
+      elseif v == 3 then
+        params:set("glide_time", 1)
+      end
+  end },
+  oct = value:new{ v = 2, p = { { 4, 8 }, 2 }, 
+    event = function(self, v)
+    
+  end },
 }
 
 
@@ -379,7 +406,7 @@ orgn.make_keyboard = function(rows, offset) -- function for generating a keyboar
   return keyboard -- return our keybaord
 end
 
-orgn.keyboard = orgn.make_keyboard(7, 12) -- call keybaord function w/ 8 rows & octave separation. u can change this !
+orgn.keyboard = orgn.make_keyboard(6, 12) -- call keybaord function w/ 8 rows & octave separation. u can change this !
 
 
 --------------------------------------------
