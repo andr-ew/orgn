@@ -154,10 +154,17 @@ function orgn.init()
   
   engine.bulkset("xfade.TrimA 1 xfade.TrimB 1 xfade.Master 1")
   
-  r.util.make_param("lvl", "SGain", "Gain", orgn.poly, { default=0.0 }, "lvl abc")
+  r.util.make_param("lvl", "SGain", "Gain", orgn.poly, { default=-4 }, "lvl abc")
   r.util.make_param("lvla", "Amp", "Level", orgn.poly, { default=1 }, "lvl a")
   r.util.make_param("lvlb", "Amp", "Level", orgn.poly, { default=0.3 }, "lvl b")
-  r.util.make_param("lvla", "Amp", "Level", orgn.poly, { default=0.3 }, "lvl c")
+  r.util.make_param("lvlc", "Amp", "Level", orgn.poly, { default=0.3 }, "lvl c")
+  r.util.make_param("osca", "SineOsc", "Range", orgn.poly, {}, "oct a")
+  r.util.make_param("oscb", "SineOsc", "Range", orgn.poly, { default = 1 }, "oct b")
+  r.util.make_param("oscc", "SineOsc", "Range", orgn.poly, { default = 1 }, "oct c", 
+    function(v) 
+      orgn.controls.oct.v = (v == 7) and 5 or v + 1
+      orgn.g_redraw(g)
+  end)
   r.util.make_param("osca", "SineOsc", "PM", orgn.poly, {}, "pm c -> a")
   r.util.make_param("oscb", "SineOsc", "PM", orgn.poly, {}, "pm c -> b")
   r.util.make_param("oscc", "SineOsc", "PM", orgn.poly, {}, "pm c <- b")
@@ -237,6 +244,13 @@ for i = 1, orgn.poly do
   nm[i] = metro.init()
 end
 
+orgn.vel = function()
+  return math.random() * 0.2 -- random logic that genrates a new velocity for each key press
+end
+
+orgn.pan = function()
+  return ((math.random() * 2) - 1)  * params:get("width") -- random logic that genrates a new pan for each key press
+end
 
 orgn.noteon = function(note)
   local slot = orgn.voice:get()
@@ -247,13 +261,13 @@ orgn.noteon = function(note)
   local function on()
     print("on", slot.id)
     
-    engine.bulkset("env"..slot.id..".Gate 1 fg"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
+    engine.bulkset("lvlvel"..slot.id..".Gain "..orgn.vel().." pan"..slot.id..".Position "..orgn.pan().." env"..slot.id..".Gate 1 fg"..slot.id..".Frequency "..musicutil.note_num_to_freq(note))
   end
   
   if ADSR.Attack > 1000 then
     nm[slot.id]:stop()
     nm[slot.id].event = on
-    nm[slot.id]:start( 0.1, 1)
+    nm[slot.id]:start( 0.15, 1)
   else
     on()
   end
@@ -311,13 +325,13 @@ end
 
 TODO
 
-[] random pan
-[] random velocity
+[x] random pan
+[x] random velocity
 
 mappings:
 [x] scale
 [x glide time 0 0.1s 0.3s 1s
-[] osc c oct 0 1 2 3 7
+[x] osc c oct 1 2 3 4 5
 [x] envelope shape |\  / \  /|
 
 ]]--
@@ -328,10 +342,6 @@ orgn.scales = { -- 4 different scales, go on & change em! can be any length. be 
   { "D", "E", "D", "A", "C" },
   { "D", "E", "F♯", "G", "B"}
 }
-
-orgn.vel = function()
-  return 0.8 + math.random() * 0.2 -- random logic that genrates a new velocity for each key press
-end
 
 orgn.controls = crop:new{ -- controls at the top of the grid. generated using the crops lib - gr8 place to add stuff !
   scale = value:new{ v = 1, p = { { 1, 4 }, 1 } },
@@ -355,7 +365,7 @@ orgn.controls = crop:new{ -- controls at the top of the grid. generated using th
   end },
   oct = value:new{ v = 2, p = { { 4, 8 }, 2 }, 
     event = function(self, v)
-    
+      params:set("oscc_range", (v == 5) and 7 or v - 1)
   end },
 }
 
