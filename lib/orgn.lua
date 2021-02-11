@@ -1,20 +1,13 @@
 --[[
 synth control defaults:
-[ gate, 0 ]
-[ pan, 0 ]
-[ hz, [ 440, 440, 0 ] ]
 [ amp, [ 1.0, 0.5, 0.25 ] ]
 [ ratio, [ 1.0, 2.0, 4.0 ] ]
-[ mod0, [ 0, 0, 0 ] ]
-[ mod1, [ 0, 0, 0 ] ]
-[ mod2, [ 0, 0, 0 ] ]
 [ attack, [ 0.001, 0.001, 0.001 ] ]
 [ decay, [ 0, 0, 0 ] ]
 [ sustain, [ 1, 1, 1 ] ]
 [ release, [ 0.2, 0.2, 0.2 ] ]
 [ curve, -4 ]
 [ done, [ 1, 1, 1 ] ]
-[ inbus, 0.0 ]
 [ bits, 11 ]
 [ samples, 26460 ]
 [ dustiness, 1.95 ]
@@ -25,7 +18,9 @@ synth control defaults:
 ]]
 
 local cs = require 'controlspec'
-local ops = { 'a', 'b', 'c' }
+
+local opnames = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' }
+local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4 }
 
 local porta = { params = {} }
 
@@ -45,6 +40,7 @@ local function ctl(arg)
     params:add(arg)
     table.insert(ids, arg.id)
 end
+
 --[[
 local mix = function(...)
     local vars = { ... }
@@ -63,6 +59,7 @@ local mix = function(...)
 end
 ]]
 
+-- opcount: operator count
 -- voice:
 -- 'all': add param control over all voices (for using the engine as a single polysynth)
 -- <number>: add params for this voice only
@@ -70,20 +67,32 @@ end
 -- env:
 -- 'asr': a single asr envelope with span controls for each osc
 -- 'adsr': independent adsr envelopes per-operator
--- envstyle:
 --
+-- envstyle:
 -- 'linked': single controls with span across operators
 -- 'independent': unique control per-operator
 --
 -- callback: runs at the end of evey action function (args: id, value)
-porta.params.synth = function(voice, env, envstyle, callback)
+porta.params.synth = function(opcount, voice, env, envstyle, callback)
+    opcount = opcount or 3
     voice = voice or 'all'
     env = env  or 'asr'
     envstyle = envstyle or 'linked'
 
     ids = {}
     cb = callback or cb
+    
+    local ops = {}
+    for i = 1, opcount do ops[i] = opnames[i] end
+    if opcount < 3 then engine.amp('all', 3, 0) -- good 'nuf
 
+    for i, op in ipairs(ops) do
+        adsr.a[i] = 0.001,
+        adsr.d[i] = 0,
+        adsr.s[i] = 1,
+        adsr.r[i] = 0.2
+    end
+    
     local vc = voice
 
     --mixer objects
@@ -152,7 +161,48 @@ porta.params.synth = function(voice, env, envstyle, callback)
         -- engine.pan(<note id>, math.random()*2*v - 1)
     }
 
+
+    params:add_separator('env')
+
+    local ds = env == 'adsr'
+    if envstyle == 'linked' then
+
+        -- env mixer
+        local emx = {
+            time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75,
+            update = function(s)
+                for i, op in ipairs(ops) do
+                    local j = i - 2
+                    local a, r
+                    if ramp > 0 then
+                        r = s.time
+                        a = s.time * (1 - s.ramp)
+                    else
+                        r = s.time * (1 - s.ramp)
+                        a = s.time
+                    end
+
+                    adsr.a = a * (1 + j*math.abs(s.span))
+                    adsr.d = r * sp * (1 + j*s.span)
+                    adsr.s = s.sustain * (1 + j*s.span)
+                    adsr.r = r * sp * (1 + j*s.span)
+                end
+
+                engine.batch('attack', vc, table.unpack(adsr.a))
+                if ds then
+                    engine.batch('decay', vc, table.unpack(adsr.d))
+                    engine.batch('sustain', vc, table.unpack(adsr.s))
+                end
+                engine.batch('release', vc, table.unpack(adsr.r))
+                engine.curve(vc, adsr.c)
+            end
+        }
+
+    else
+    end
+
     params:add_separator('osc')
+
     for i, op in ipairs(ops) do
         ctl {
             name = 'amp ' .. op,
