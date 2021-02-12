@@ -1,34 +1,35 @@
---[[
-synth control defaults:
-[ amp, [ 1.0, 0.5, 0.25 ] ]
-[ ratio, [ 1.0, 2.0, 4.0 ] ]
-[ attack, [ 0.001, 0.001, 0.001 ] ]
-[ decay, [ 0, 0, 0 ] ]
-[ sustain, [ 1, 1, 1 ] ]
-[ release, [ 0.2, 0.2, 0.2 ] ]
-[ curve, -4 ]
-[ done, [ 1, 1, 1 ] ]
-[ bits, 11 ]
-[ samples, 26460 ]
-[ dustiness, 1.95 ]
-[ dust, 1 ]
-[ crackle, 0.1 ]
-[ drive, 0.05 ]
-[ drywet, 1 ]
-]]
-
 local cs = require 'controlspec'
 
-local opnames = { 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h' }
-local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4 }
-
-local porta = { params = {} }
+local ops = { 'a', 'b', 'c' }
+local orgn = { params = {} }
 
 local ids = {}
+local vc = 'all'
 local cb = function(id, v) end
 
+-- adsr mixer object
+local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
+    update = function(s, ds)
+        engine.batch('attack', vc, table.unpack(s.a))
+        if s.ds then
+            engine.batch('decay', vc, table.unpack(s.d))
+            engine.batch('sustain', vc, table.unpack(s.s))
+        end
+        engine.batch('release', vc, table.unpack(s.r))
+        engine.curve(vc, s.c)
+    end
+}
+for i, op in ipairs(ops) do
+    adsr.a[i] = 0.001
+    adsr.d[i] = 0
+    adsr.s[i] = 1
+    adsr.r[i] = 0.2
+end
+
+-- param:add wrapper with some shortcuts
 local function ctl(arg)
     arg.id = arg.id or string.gsub(arg.name, ' ', '_')
+    if vc ~= 'all' then arg.id = arg.id .. '_' .. vc end
     arg.type = arg.type or 'control'
 
     local a = arg.action or function() end
@@ -41,40 +42,20 @@ local function ctl(arg)
     table.insert(ids, arg.id)
 end
 
---[[
-local mix = function(...)
-    local vars = { ... }
-    local default = table.remove(vars, #vars)
-    local action = table.remove(vars, #vars)
-    local vals = {}
-    local funcs = {}
-    for _,k in ipairs(vars) do 
-        vals[k] = default
-        funcs[k] = function(v)
-            vals[k] = v
-            action(table.unpack(vals))
-        end
-    end
-    return funcs
-end
-]]
-
--- opcount: operator count
 -- voice:
 -- 'all': add param control over all voices (for using the engine as a single polysynth)
 -- <number>: add params for this voice only
 --
 -- env:
--- 'asr': a single asr envelope with span controls for each osc
--- 'adsr': independent adsr envelopes per-operator
+-- 'asr': control over attack & release
+-- 'adsr': full control of the adsr envelope
 --
 -- envstyle:
 -- 'linked': single controls with span across operators
 -- 'independent': unique control per-operator
 --
 -- callback: runs at the end of evey action function (args: id, value)
-porta.params.synth = function(opcount, voice, env, envstyle, callback)
-    opcount = opcount or 3
+orgn.params.synth = function(voice, env, envstyle, callback)
     voice = voice or 'all'
     env = env  or 'asr'
     envstyle = envstyle or 'linked'
@@ -82,18 +63,7 @@ porta.params.synth = function(opcount, voice, env, envstyle, callback)
     ids = {}
     cb = callback or cb
     
-    local ops = {}
-    for i = 1, opcount do ops[i] = opnames[i] end
-    if opcount < 3 then engine.amp('all', 3, 0) -- good 'nuf
-
-    for i, op in ipairs(ops) do
-        adsr.a[i] = 0.001,
-        adsr.d[i] = 0,
-        adsr.s[i] = 1,
-        adsr.r[i] = 0.2
-    end
-    
-    local vc = voice
+    vc = voice
 
     --mixer objects
     local ratio = { 1, 2, 4,
@@ -120,7 +90,6 @@ porta.params.synth = function(opcount, voice, env, envstyle, callback)
             engine.batch('amp', vc, table.unpack(a))
         end
     }
-
 
     params:add_separator('synth')
     ctl {
@@ -165,6 +134,8 @@ porta.params.synth = function(opcount, voice, env, envstyle, callback)
     params:add_separator('env')
 
     local ds = env == 'adsr'
+    local cstime = cs.new(0.001, 6, 'exp', 0, 0.2, "s")
+
     if envstyle == 'linked' then
 
         -- env mixer
@@ -174,7 +145,7 @@ porta.params.synth = function(opcount, voice, env, envstyle, callback)
                 for i, op in ipairs(ops) do
                     local j = i - 2
                     local a, r
-                    if ramp > 0 then
+                    if s.ramp > 0 then
                         r = s.time
                         a = s.time * (1 - s.ramp)
                     else
@@ -182,23 +153,68 @@ porta.params.synth = function(opcount, voice, env, envstyle, callback)
                         a = s.time
                     end
 
-                    adsr.a = a * (1 + j*math.abs(s.span))
-                    adsr.d = r * sp * (1 + j*s.span)
-                    adsr.s = s.sustain * (1 + j*s.span)
-                    adsr.r = r * sp * (1 + j*s.span)
+                    adsr.a[i] = math.max(a * (1 + j*math.abs(s.span)), adsr.min)
+                    adsr.d[i] = math.max(r * (1 + j*s.span), adsr.min)
+                    adsr.s[i] = s.sustain * (1 + j*s.span)
+                    adsr.r[i] = math.max(r * (1 + j*s.span), adsr.min)
                 end
 
-                engine.batch('attack', vc, table.unpack(adsr.a))
-                if ds then
-                    engine.batch('decay', vc, table.unpack(adsr.d))
-                    engine.batch('sustain', vc, table.unpack(adsr.s))
-                end
-                engine.batch('release', vc, table.unpack(adsr.r))
-                engine.curve(vc, adsr.c)
+                adsr:update(ds)
             end
         }
 
+        ctl {
+            name = 'time',
+            controlspec = cstime,
+            action = function(v) emx.time = v; emx:update() end
+        }
+        ctl {
+            name = 'ramp',
+            controlspec = cs.def { min = -1, max = 1, default = 1 },
+            action = function(v) emx.ramp = v; emx:update() end
+        }
+        if ds then
+            ctl {
+                name = 'sustain',
+                controlspec = cs.new(),
+                action = function(v) emx.sustain = v; emx:update() end
+            }
+        end
+        ctl {
+            name = 'span',
+            controlspec = cs.def { min = -1, max = 1, default = 0 },
+            action = function(v) emx.span = v; emx:update() end
+        }
+        ctl {
+            name = 'curve',
+            controlspec = cs.def { min = -8, max = 8, default = -4 },
+            action = function(v) emx.curve = v; emx:update() end
+        }
     else
+        for i, op in ipairs(ops) do
+            ctl {
+                name = 'attack ' ..op,
+                controlspec = cstime,
+                action = function(v) adsr.a = v; adsr:update() end
+            }
+            if ds then
+                ctl {
+                    name = 'decay ' ..op,
+                    controlspec = cstime,
+                    action = function(v) adsr.d = v; adsr:update() end
+                }
+                ctl {
+                    name = 'sustain',
+                    controlspec = cs.new(),
+                    action = function(v) adsr.s = v; adsr:update() end
+                }
+            end
+            ctl {
+                name = 'release ' ..op,
+                controlspec = cstime,
+                action = function(v) adsr.r = v; adsr:update() end
+            }
+        end
     end
 
     params:add_separator('osc')
@@ -239,4 +255,99 @@ porta.params.synth = function(opcount, voice, env, envstyle, callback)
     return ids --return table of the ids
 end
 
-return porta
+-- style:
+-- 'simple': three controls, the rest are parametized from the "bits" control
+-- 'complex': individual parameter for each control under the hood
+-- callback: runs at the end of evey action function (args: id, value)
+orgn.params.ulaw = function(style, callback)
+    style = style or 'simple'
+    cb = callback or cb
+    ids = {}
+
+    --[[
+    synth control defaults:
+    [ amp, [ 1.0, 0.5, 0.25 ] ]
+    [ ratio, [ 1.0, 2.0, 4.0 ] ]
+    [ attack, [ 0.001, 0.001, 0.001 ] ]
+    [ decay, [ 0, 0, 0 ] ]
+    [ sustain, [ 1, 1, 1 ] ]
+    [ release, [ 0.2, 0.2, 0.2 ] ]
+    [ curve, -4 ]
+    [ done, [ 1, 1, 1 ] ]
+    [ bits, 11 ]
+    [ samples, 26460 ]
+    [ dustiness, 1.95 ]
+    [ dust, 1 ]
+    [ crackle, 0.1 ]
+    [ drive, 0.05 ]
+    [ drywet, 1 ]
+    ]]
+
+    params:add_separator('u-law')
+    local scs = cs.def { min = 200, max = 44100, default = 26460, step = 0.01/4 }
+    local bcs = cs.def { min = 4, max = 18, default = 11, step = 0.01/4 }
+
+    if style == 'simple' then
+        ctl {
+            name = 'samples',
+            controlspec = scs,
+            action = function(v)
+                engine.samples(v)
+            end
+        }
+        ctl {
+            name = 'bits',
+            controlspec = bcs,
+            action = function(v)
+                engine.bits(v)
+            end
+        }
+    else
+        ctl {
+            name = 'samples',
+            controlspec = scs,
+            action = engine.samples
+        }
+        ctl {
+            name = 'bits',
+            controlspec = bcs,
+            action = engine.bits
+        }
+        ctl {
+            name = 'drive',
+            controlspec = cs.def { max = 0.3, default = 0.05 },
+            action = engine.drive
+        }
+        ctl {
+            name = 'crackle',
+            controlspec = cs.def { min = 0, max = 3, default = 0.1 },
+            action = engine.crackle
+        }
+        ctl {
+            name = 'crinkle',
+            controlspec = cs.def { min = 0, max = 2, default = 1.5 },
+            action = engine.crinkle
+        }
+        ctl {
+            name = 'dust',
+            controlspec = cs.def { min = 0, max = 10, default = 1 },
+            action = engine.dust
+        }
+        ctl {
+            name = 'dustiness',
+            controlspec = cs.def { min = 0, max = 20, default = 1.95 },
+            action = engine.dustiness
+        }
+    end
+    ctl {
+        name = 'dry/wet',
+        controlspec = cs.def { default = 1 },
+        action = engine.drywet
+    }
+
+    return ids
+end
+
+orgn.adsr = adsr
+
+return orgn

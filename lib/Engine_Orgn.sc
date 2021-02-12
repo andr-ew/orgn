@@ -55,14 +55,14 @@ Engine_Orgn : CroneEngine {
         var fxDef = SynthDef.new(\ulaw, {
             var in = Mix.ar([In.ar(\inbus.kr(), 2), SoundIn.ar([0,1])]),
             u = 2.pow(\bits.kr(11)), r = 700, lim = 1,
-            samps = \samples.kr(26460), dust = \dustiness.kr(1.95);
+            samps = \samples.kr(26460);
             var sig = in;
 
             sig = Mix.ar([
                 sig,
                 EnvFollow.ar(in, 0.99) * Mix.ar([
-                    GrayNoise.ar(1) * Dust.ar(dust) * \dust.kr(1), //add dust
-                    Crackle.ar(dust) * \crackle.kr(0.1) //add crackle
+                    GrayNoise.ar(1) * Dust.ar(\dustiness.kr(1.95)) * \dust.kr(1), //add dust
+                    Crackle.ar(\crinkle.kr(1.5)) * \crackle.kr(0.1) //add crackle
                 ])
             ]);
             sig = LPF.ar(sig, samps/2); //anti-aliasing filter

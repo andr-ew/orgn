@@ -3,7 +3,7 @@
 function r() norns.script.load(norns.state.script) end
 
 mu = require 'musicutil'
-porta = include 'lib/orgn'
+orgn = include 'lib/orgn'
 
 engine.name = "Orgn"
 engine.list_commands()
@@ -11,7 +11,8 @@ engine.list_commands()
 m = midi.connect()
 
 function init()
-    porta.params.synth('all', 'asr', 'linked');
+    orgn.params.synth('all', 'asr', 'linked');
+    orgn.params.ulaw('complex')
     --params:read()
 
     m.event = function(data)
@@ -26,6 +27,5 @@ end
 
 function cleanup() 
     --params:write()
-    m.cleanup() 
 end
 
