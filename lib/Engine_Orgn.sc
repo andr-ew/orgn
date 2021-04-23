@@ -74,7 +74,14 @@ Engine_Orgn : CroneEngine {
 
         //ulaw synthdef
         var fxDef = SynthDef.new(\ulaw, {
-            var in = Mix.ar([In.ar(\inbus.kr(), 2), SoundIn.ar([0,1]) * \amp_adc_in.kr(1)]),
+            var in = Mix.ar([
+                In.ar(\inbus.kr(), 2),
+                XFade2.ar(
+                    SoundIn.ar([0,1]),
+                    SoundIn.ar(0!2),
+                    (\adc_mono.kr(0)*2) - 1
+                ) * \adc_in_amp.kr(1)
+            ]),
             steps = 2.pow(\bits.kr(11)), r = 700,
             samps = \samples.kr(26460);
             var sig = in;
@@ -87,7 +94,7 @@ Engine_Orgn : CroneEngine {
                     Crackle.ar(\crinkle.kr(1.5)) * \crackle.kr(0.1) //add crackle
                 ])
             ]);
-            sig = LPF.ar(sig, samps/2); //anti-aliasing filter
+            // sig = LPF.ar(sig, samps/2); //anti-aliasing filter
             sig = Compander.ar(sig, sig, //limiter/compression
                 thresh: 1,
                 slopeBelow: 1,
@@ -97,10 +104,12 @@ Engine_Orgn : CroneEngine {
             );
             sig = Decimator.ar(sig, samps, 31); //sample rate reduction
 
-            //bitcrushing
+            //noisy bitcrushing
             sig = Shaper.ar(compress_buf.bufnum, sig);
             sig = (
-                (sig.abs * steps) + (GrayNoise.ar(mul: \bitnoise.kr(0.25)) * (0.5 + Dust2.ar()))
+                (sig.abs * steps) + (
+                    GrayNoise.ar(mul: 0.5) * (0.25 + CoinGate.ar(0.125, Dust.ar()!2))
+                )
             ).round * sig.sign / steps;
             ab = (steps * sig.abs);
             sig = Shaper.ar(expand_buf.bufnum, sig);
@@ -109,7 +118,7 @@ Engine_Orgn : CroneEngine {
 
             //waveshaper drive (using the tf wavetable)
             sig = XFade2.ar(sig,
-                Shaper.ar(tfBuf, sig), (\drive.kr(0.05)*2) - 1
+                Shaper.ar(tfBuf, sig), (\drive.kr(0.025)*2) - 1
             );
 
             Out.ar(\outbus.kr(0), XFade2.ar(in, sig, (\drywet.kr(1)*2) - 1)); //drywet out
