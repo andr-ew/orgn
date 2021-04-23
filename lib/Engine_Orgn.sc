@@ -88,11 +88,11 @@ Engine_Orgn : CroneEngine {
             samps = \samples.kr(26460);
             var sig = in;
 
-            sig = Mix.ar([
+           sig = Mix.ar([
                 sig,
                 EnvFollow.ar(in, 0.99)* Mix.ar([
                     GrayNoise.ar(1) * Dust.ar(\dustiness.kr(1.95)) * \dust.kr(1), //add dust
-                    Crackle.ar(\crinkle.kr(1.5)) * \crackle.kr(0.1) //add crackle
+                    Crackle.ar(((\crinkle.kr(0)*0.25) + 1.75 )) * \crackle.kr(0.1) //add crackle
                 ])
             ]);
             // sig = LPF.ar(sig, samps/2); //anti-aliasing filter
@@ -122,12 +122,15 @@ Engine_Orgn : CroneEngine {
             );
 
             Out.ar(\outbus.kr(0), XFade2.ar(in, sig, (\drywet.kr(1)*2) - 1)); //drywet out
-        });
+        }).add;
 
         //ulaw synth & bus
         fxBus = Bus.audio(context.server, 2);
-        fx = fxDef.play(args: [\inbus, fxBus]);
+        context.server.sync;
 
+        fx = Synth.new(\ulaw, args: [\inbus, fxBus]);
+
+        context.server.sync;
 
         //gator is a multi-voice control router/voice allocator - we send it info to create synths for fmDef
         gator = OrgnGator.new(context.server, fmDef, [\outbus, fxBus], fx, \addBefore);
