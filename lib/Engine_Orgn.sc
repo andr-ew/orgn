@@ -92,7 +92,8 @@ Engine_Orgn : CroneEngine {
             sig = sig.sign * log(1 + (mu * sig.abs)) / log(1 + mu);
             sig = (
                 (sig.abs * steps) + (
-                    GrayNoise.ar(mul: 0.5) * (0.25 + CoinGate.ar(0.125, Dust.ar()!2))
+                    \bitnoise.kr(0.5) * GrayNoise.ar() 
+                    * (0.25 + CoinGate.ar(0.125, Dust.ar()!2))
                 )
             ).round * sig.sign / steps;
             sig = sig.sign / mu * ((1+mu)**(sig.abs) - 1);
@@ -104,7 +105,7 @@ Engine_Orgn : CroneEngine {
                 Shaper.ar(tfBuf, sig), (\drive.kr(0.025)*2) - 1
             );
 
-            Out.ar(\outbus.kr(0), XFade2.ar(in, sig, (\drywet.kr(1)*2) - 1)); //drywet out
+            Out.ar(\outbus.kr(0), XFade2.ar(in, sig, (\drywet.kr(0.25)*2) - 1)); //drywet out
         }).add;
 
         //ulaw synth & bus

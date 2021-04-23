@@ -265,26 +265,39 @@ orgn.params.ulaw = function(style, callback)
     ids = {}
 
     --[[
-    synth control defaults:
-    [ amp, [ 1.0, 0.5, 0.25 ] ]
-    [ ratio, [ 1.0, 2.0, 4.0 ] ]
-    [ attack, [ 0.001, 0.001, 0.001 ] ]
-    [ decay, [ 0, 0, 0 ] ]
-    [ sustain, [ 1, 1, 1 ] ]
-    [ release, [ 0.2, 0.2, 0.2 ] ]
-    [ curve, -4 ]
-    [ done, [ 1, 1, 1 ] ]
-    [ bits, 11 ]
-    [ samples, 26460 ]
-    [ dustiness, 1.95 ]
-    [ dust, 1 ]
-    [ crackle, 0.1 ]
-    [ drive, 0.05 ]
-    [ drywet, 1 ]
+    [ gate, 0  ]
+    [ pan, 0  ]
+    [ hz, [ 440, 440, 0  ]  ]
+    [ amp, [ 1.0, 0.5, 0.25  ]  ]
+    [ velocity, 1  ]
+    [ ratio, [ 1.0, 2.0, 4.0  ]  ]
+    [ mod0, [ 0, 0, 0  ]  ]
+    [ mod1, [ 0, 0, 0  ]  ]
+    [ mod2, [ 0, 0, 0  ]  ]
+    [ attack, [ 0.001, 0.001, 0.001  ]  ]
+    [ decay, [ 0, 0, 0  ]  ]
+    [ sustain, [ 1, 1, 1  ]  ]
+    [ release, [ 0.2, 0.2, 0.2  ]  ]
+    [ curve, -4  ]
+    [ done, [ 1, 1, 1  ]  ]
+    [ outbus, 0  ]
+    [ inbus, 0.0  ]
+    [ adc_mono, 0  ]
+    [ adc_in_amp, 1  ]
+    [ bits, 11  ]
+    [ samples, 26460  ]
+    [ samples_lag, 0.2  ]
+    [ dustiness, 1.95  ]
+    [ dust, 1  ]
+    [ crinkle, 0  ]
+    [ crackle, 0.1  ]
+    [ drive, 0.025  ]
+    [ outbus, 0  ]
+    [ drywet, 1  ]
     ]]
 
     params:add_separator('u-law')
-    local scs = cs.def { min = 200, max = 44100, default = 26460, step = 0.01/4 }
+    local scs = cs.def { min = 200, max = 48000, default = 26460, step = 1/1000, warp = 'exp' }
     local bcs = cs.def { min = 4, max = 18, default = 11, step = 0.01/4 }
 
     if style == 'simple' then
@@ -309,13 +322,17 @@ orgn.params.ulaw = function(style, callback)
             action = engine.samples
         }
         ctl {
+            name = 'samples_lag', action = engine.samples_lag,
+            controlspec = cs.def { default = 0.2, max = 2 }
+        }
+        ctl {
             name = 'bits',
             controlspec = bcs,
             action = engine.bits
         }
         ctl {
             name = 'drive',
-            controlspec = cs.def { max = 0.3, default = 0.0125 },
+            controlspec = cs.def { min = 0, max = 0.3, default = 0.01, step = 0, quant = 1/100 },
             action = engine.drive
         }
         ctl {
@@ -325,7 +342,7 @@ orgn.params.ulaw = function(style, callback)
         }
         ctl {
             name = 'crinkle',
-            controlspec = cs.def { min = 0, max = 2, default = 1.5 },
+            controlspec = cs.def { min = 0, max = 1, default = 0 },
             action = engine.crinkle
         }
         ctl {
@@ -338,10 +355,13 @@ orgn.params.ulaw = function(style, callback)
             controlspec = cs.def { min = 0, max = 20, default = 1.95 },
             action = engine.dustiness
         }
+        ctl {
+            name = 'bitnoise', action = engine.bitnoise,
+        }
     end
     ctl {
         name = 'dry/wet',
-        controlspec = cs.def { default = 1 },
+        controlspec = cs.def { default = 0.25 },
         action = engine.drywet
     }
 
