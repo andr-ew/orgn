@@ -20,13 +20,13 @@ Engine_Orgn : CroneEngine {
 	    //fm synth synthdef - number of operators is set by ops
         var fmDef = SynthDef.new(\fm, {
 
-            //named controls (inputs) - most are multichannel (channel per operator). 
+            //named controls (inputs) - most are multichannel (channel per operator).
             var gate = \gate.kr(0), pan = \pan.kr(0), hz = \hz.kr([440, 440, 0]),
             amp = \amp.kr(Array.fill(ops, { arg i; 1/(2.pow(i)) })), vel = \velocity.kr(1),
             ratio = \ratio.kr(Array.fill(ops, { arg i; (2.pow(i)) })),
             mod = Array.fill(ops, { arg i; NamedControl.kr(\mod ++ i, 0!ops) }),
         	a = \attack.kr(0.001!ops), d = \decay.kr(0!ops), s = \sustain.kr(1!ops),
-            r = \release.kr(0.2!ops), curve = \curve.kr(-4), 
+            r = \release.kr(0.2!ops), curve = \curve.kr(-4),
             done = \done.kr(1!ops); // done needs to be set based on release times (longest relsease channel gets a 1)
 
             //hz envelope (for glides)
@@ -51,16 +51,38 @@ Engine_Orgn : CroneEngine {
         )).normalize;
         var tfBuf = Buffer.loadCollection(context.server, tf.asWavetableNoWrap);
 
+        //u-law nonlinear waveshapers by @zebra
+        //https://gist.github.com/catfact/feb365921d7f6dace86e587795daaf3d
+        var n = 512;
+        var mu = 255;
+        var unit = Array.fill(n, {|i| i.linlin(0, n-1, -1, 1) });
+        var compress_curve =  unit.collect({ |x|
+            x.sign * log(1 + (mu * x.abs)) / log(1 + mu);
+        });
+        var expand_curve = unit.collect({ |y|
+            y.sign / mu * ((1+mu)**(y.abs) - 1);
+        });
+
+        var compress_buf = Buffer.loadCollection(
+            context.server, Signal.newFrom(compress_curve).asWavetableNoWrap
+        );
+        var expand_buf = Buffer.loadCollection(
+            context.server, Signal.newFrom(expand_curve).asWavetableNoWrap
+        );
+
+        var nothing = context.server.sync;
+
         //ulaw synthdef
         var fxDef = SynthDef.new(\ulaw, {
-            var in = Mix.ar([In.ar(\inbus.kr(), 2), SoundIn.ar([0,1])]),
-            u = 2.pow(\bits.kr(11)), r = 700, lim = 1,
+            var in = Mix.ar([In.ar(\inbus.kr(), 2), SoundIn.ar([0,1]) * \amp_adc_in.kr(1)]),
+            steps = 2.pow(\bits.kr(11)), r = 700,
             samps = \samples.kr(26460);
             var sig = in;
+            var ab;
 
             sig = Mix.ar([
                 sig,
-                EnvFollow.ar(in, 0.99) * Mix.ar([
+                EnvFollow.ar(in, 0.99)* Mix.ar([
                     GrayNoise.ar(1) * Dust.ar(\dustiness.kr(1.95)) * \dust.kr(1), //add dust
                     Crackle.ar(\crinkle.kr(1.5)) * \crackle.kr(0.1) //add crackle
                 ])
@@ -73,16 +95,21 @@ Engine_Orgn : CroneEngine {
                 clampTime:  0.01,
                 relaxTime:  0.01
             );
-            sig = Decimator.ar(sig, samps, 31);                     //sample rate reduction
-            sig = (sig / (lim*2)) + (lim/2);                        //range 0 - 1 for encoding
+            sig = Decimator.ar(sig, samps, 31); //sample rate reduction
+
+            //bitcrushing
+            sig = Shaper.ar(compress_buf.bufnum, sig);
             sig = (
-                1 + ((u * sig) - ((u * sig) % (1 + (u - u.floor)))) //u-law encoding (bitcrush pt 1)
-            ).log/(1 + u).log;
-            sig = (1/u) * ((1+u).pow(sig) - 1);                     //u-law decoding (bitcrush pt 2)
-            sig = (sig - (lim/2)) * (lim*2);                        //revert range after decoding
-            sig = Slew.ar(sig, r, r);                               //filter out some rough edges
+                (sig.abs * steps) + (GrayNoise.ar(mul: \bitnoise.kr(0.25)) * (0.5 + Dust2.ar()))
+            ).round * sig.sign / steps;
+            ab = (steps * sig.abs);
+            sig = Shaper.ar(expand_buf.bufnum, sig);
+
+            sig = Slew.ar(sig, r, r); //filter out some rough edges
+
+            //waveshaper drive (using the tf wavetable)
             sig = XFade2.ar(sig,
-                Shaper.ar(tfBuf, sig), (\drive.kr(0.05)*2) - 1      //waveshaper drive (using the tf wavetable)
+                Shaper.ar(tfBuf, sig), (\drive.kr(0.05)*2) - 1
             );
 
             Out.ar(\outbus.kr(0), XFade2.ar(in, sig, (\drywet.kr(1)*2) - 1)); //drywet out
@@ -100,9 +127,9 @@ Engine_Orgn : CroneEngine {
 
         //gator can make most of the engine commands automatically - we send a list of *exclusions* for the conrols we're adding manually
         gator.addCommands(this, [\hz, \mod0, \mod1, \mod2, \outbus, \done, \release]);
-        
+
         //then we add the controls manually - in these cases there's a bit of interpretation needed before sending values to gator
-        
+
         //set hz instantaneously
         this.addCommand(\hz, \sf, { arg msg;
             var id = msg[1], hz = msg[2];
@@ -141,7 +168,7 @@ Engine_Orgn : CroneEngine {
             var id = msg[1], modulator = msg[2], carrier = msg[3], amt = msg[4];
             gator.setAt((\mod ++ (carrier - 1)).asSymbol, id, modulator, amt);
         });
-        
+
         //the release command must manually set the doneAction for each operator via \done
         this.addCommand(\release, \sif, { arg msg;
             var id = msg[1], rel, done, max, idx;
@@ -164,13 +191,13 @@ Engine_Orgn : CroneEngine {
             msg.removeAt(0);
             gator.set(*msg);
         });
-        
-        //auto-add fx commands 
+
+        //auto-add fx commands
         fxDef.allControlNames.do({ arg c;
             var n = c.name;
             if((n != \inbus) && (n != \outbus), { this.addCommand(n, \f, { arg msg; fx.set(n, msg[1]) })});
         });
-        
+
         //print synth default values - will be useful when I'm making the controlspecs
         "synth control defaults:".postln;
         (fmDef.allControlNames ++ fxDef.allControlNames).do({ arg c;
@@ -179,7 +206,7 @@ Engine_Orgn : CroneEngine {
 	}
 
 	free {
-	
+
 	    //free gator, fx synth, fx bus
 	    gator.free;
 		fx.free;
