@@ -49,28 +49,10 @@ Engine_Orgn : CroneEngine {
                 )/10;
         )).normalize;
 
-        //u-law nonlinear waveshapers by @zebra
-        //https://gist.github.com/catfact/feb365921d7f6dace86e587795daaf3d
-        var n = 512;
-        var mu = 255;
-        var unit = Array.fill(n, {|i| i.linlin(0, n-1, -1, 1) });
-        var compress_curve =  unit.collect({ |x|
-            x.sign * log(1 + (mu * x.abs)) / log(1 + mu);
-        });
-        var expand_curve = unit.collect({ |y|
-            y.sign / mu * ((1+mu)**(y.abs) - 1);
-        });
         var batchformat = '';
         var fxDef;
 
         tfBuf = Buffer.loadCollection(context.server, tf.asWavetableNoWrap);
-
-        compress_buf = Buffer.loadCollection(
-            context.server, Signal.newFrom(compress_curve).asWavetableNoWrap
-        );
-        expand_buf = Buffer.loadCollection(
-            context.server, Signal.newFrom(expand_curve).asWavetableNoWrap
-        );
 
         context.server.sync;
 
@@ -87,8 +69,9 @@ Engine_Orgn : CroneEngine {
             steps = 2.pow(\bits.kr(11)), r = 700,
             samps = \samples.kr(26460);
             var sig = in;
+            var mu = steps.sqrt;
 
-           sig = Mix.ar([
+            sig = Mix.ar([
                 sig,
                 EnvFollow.ar(in, 0.99)* Mix.ar([
                     GrayNoise.ar(1) * Dust.ar(\dustiness.kr(1.95)) * \dust.kr(1), //add dust
@@ -106,13 +89,13 @@ Engine_Orgn : CroneEngine {
             sig = Decimator.ar(sig, samps, 31); //sample rate reduction
 
             //noisy bitcrushing
-            sig = Shaper.ar(compress_buf.bufnum, sig);
+            sig = sig.sign * log(1 + (mu * sig.abs)) / log(1 + mu);
             sig = (
                 (sig.abs * steps) + (
                     GrayNoise.ar(mul: 0.5) * (0.25 + CoinGate.ar(0.125, Dust.ar()!2))
                 )
             ).round * sig.sign / steps;
-            sig = Shaper.ar(expand_buf.bufnum, sig);
+            sig = sig.sign / mu * ((1+mu)**(sig.abs) - 1);
 
             sig = Slew.ar(sig, r, r); //filter out some rough edges
 
