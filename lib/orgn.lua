@@ -315,7 +315,7 @@ orgn.params.ulaw = function(style, callback)
         }
         ctl {
             name = 'drive',
-            controlspec = cs.def { max = 0.3, default = 0.05 },
+            controlspec = cs.def { max = 0.3, default = 0.0125 },
             action = engine.drive
         }
         ctl {
