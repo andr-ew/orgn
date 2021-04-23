@@ -1,15 +1,14 @@
 // toy keyboard inspired fm synth + lofi effect (ulaw) - ulaw will also process ADC in.
 
-/*
-todo: engine.trig(), engine.noteTrig(), engine.noteTrigGlide()
-*/
-
 Engine_Orgn : CroneEngine {
 
     var <gator;
     var <fx;
     var <fxBus;
     var <ops = 3;
+    var <tfBuf;
+    var <compress_buf;
+    var <expand_buf;
 
 	*new { arg context, doneCallback;
 		^super.new(context, doneCallback);
@@ -49,7 +48,6 @@ Engine_Orgn : CroneEngine {
                     {rrand(0,2pi)}!9
                 )/10;
         )).normalize;
-        var tfBuf = Buffer.loadCollection(context.server, tf.asWavetableNoWrap);
 
         //u-law nonlinear waveshapers by @zebra
         //https://gist.github.com/catfact/feb365921d7f6dace86e587795daaf3d
@@ -62,18 +60,22 @@ Engine_Orgn : CroneEngine {
         var expand_curve = unit.collect({ |y|
             y.sign / mu * ((1+mu)**(y.abs) - 1);
         });
+        var batchformat = '';
+        var fxDef;
 
-        var compress_buf = Buffer.loadCollection(
+        tfBuf = Buffer.loadCollection(context.server, tf.asWavetableNoWrap);
+
+        compress_buf = Buffer.loadCollection(
             context.server, Signal.newFrom(compress_curve).asWavetableNoWrap
         );
-        var expand_buf = Buffer.loadCollection(
+        expand_buf = Buffer.loadCollection(
             context.server, Signal.newFrom(expand_curve).asWavetableNoWrap
         );
 
-        var nothing = context.server.sync;
+        context.server.sync;
 
         //ulaw synthdef
-        var fxDef = SynthDef.new(\ulaw, {
+        fxDef = SynthDef.new(\ulaw, {
             var in = Mix.ar([
                 In.ar(\inbus.kr(), 2),
                 XFade2.ar(
@@ -85,7 +87,6 @@ Engine_Orgn : CroneEngine {
             steps = 2.pow(\bits.kr(11)), r = 700,
             samps = \samples.kr(26460);
             var sig = in;
-            var ab;
 
             sig = Mix.ar([
                 sig,
@@ -111,7 +112,6 @@ Engine_Orgn : CroneEngine {
                     GrayNoise.ar(mul: 0.5) * (0.25 + CoinGate.ar(0.125, Dust.ar()!2))
                 )
             ).round * sig.sign / steps;
-            ab = (steps * sig.abs);
             sig = Shaper.ar(expand_buf.bufnum, sig);
 
             sig = Slew.ar(sig, r, r); //filter out some rough edges
@@ -123,8 +123,6 @@ Engine_Orgn : CroneEngine {
 
             Out.ar(\outbus.kr(0), XFade2.ar(in, sig, (\drywet.kr(1)*2) - 1)); //drywet out
         });
-
-        var batchformat = '';
 
         //ulaw synth & bus
         fxBus = Bus.audio(context.server, 2);
@@ -165,6 +163,28 @@ Engine_Orgn : CroneEngine {
             gator.set(\vel, id, vel);
             gator.set(\hz, id, start, end, dur);
             gator.set(\gate, id, 1);
+        });
+
+        this.addCommand(\noteTrig, \sfff, { arg msg;
+            var id = msg[1], hz = msg[2], vel = msg[3], dur = msg[4];
+            Routine {
+                gator.set(\velocity, id, vel);
+                gator.set(\hz, id, hz, hz, 0);
+                gator.set(\gate, id, 1);
+                dur.yield;
+                gator.set(\gate, msg[1], 0);
+            }.play
+        });
+
+        this.addCommand(\noteTrigGlide, \sfffff, { arg msg;
+            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], durTrig = msg[4];
+            Routine {
+                gator.set(\velocity, id, vel);
+                gator.set(\hz, id, start, end, dur);
+                gator.set(\gate, id, 1);
+                durTrig.yield;
+                gator.set(\gate, msg[1], 0);
+            }.play
         });
 
         //end a note (shortcut for gate(0))
@@ -215,10 +235,12 @@ Engine_Orgn : CroneEngine {
 	}
 
 	free {
-
-	    //free gator, fx synth, fx bus
+	    //free gator, fx synth, fx bus, buffers
 	    gator.free;
 		fx.free;
 		fxBus.free;
+        tfBuf.free;
+        compress_buf.free;
+        expand_buf.free;
 	}
 }
