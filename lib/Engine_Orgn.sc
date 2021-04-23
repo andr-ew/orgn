@@ -92,7 +92,7 @@ Engine_Orgn : CroneEngine {
             sig = sig.sign * log(1 + (mu * sig.abs)) / log(1 + mu);
             sig = (
                 (sig.abs * steps) + (
-                    \bitnoise.kr(0.5) * GrayNoise.ar() 
+                    \bitnoise.kr(0.5) * GrayNoise.ar()
                     * (0.25 + CoinGate.ar(0.125, Dust.ar()!2))
                 )
             ).round * sig.sign / steps;
@@ -181,7 +181,7 @@ Engine_Orgn : CroneEngine {
 
         //combine mod0/mod1/mod2 into a single mod command
         this.addCommand(\mod, \siif, { arg msg;
-            var id = msg[1], modulator = msg[2], carrier = msg[3], amt = msg[4];
+            var id = msg[1], modulator = msg[3], carrier = msg[2], amt = msg[4];
             gator.setAt((\mod ++ (carrier - 1)).asSymbol, id, modulator, amt);
         });
 
