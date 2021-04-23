@@ -73,10 +73,9 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             local p = 2^s.p
             local r = {}
             for i, op in ipairs(ops) do 
-                local dt = (i-2) * (2^s.dt)
+                local dt =  2^(s.dt * (i-1))
                 r[i] = s[i] * dt * p
             end
-            --print('ratio', vc, table.unpack(r))
             engine.batch('ratio', vc, table.unpack(r))
         end
     }
