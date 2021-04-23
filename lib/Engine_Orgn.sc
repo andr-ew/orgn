@@ -67,7 +67,7 @@ Engine_Orgn : CroneEngine {
                 ) * \adc_in_amp.kr(1)
             ]),
             steps = 2.pow(\bits.kr(11)), r = 700,
-            samps = \samples.kr(26460);
+            samps = Lag.kr(\samples.kr(26460), \samples_lag.kr(0.2));
             var sig = in;
             var mu = steps.sqrt;
 
