@@ -242,7 +242,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                 id = 'pm_' .. ops[carrier] .. '_' .. ops[modulator],
                 name = 'pm ' .. ops[carrier] .. ' -> ' .. ops[modulator],
                 controlspec = cs.def {
-                    min = 0, max = 8, quantum = 0.01/8
+                    min = 0, max = 10, quantum = 0.01/10
                 },
                 action = function(v)
                     engine.mod(vc, carrier, modulator, v)
@@ -296,8 +296,14 @@ orgn.params.ulaw = function(style, callback)
     ]]
 
     params:add_separator('u-law')
-    local scs = cs.def { min = 200, max = 48000, default = 26460, step = 1/1000, warp = 'exp' }
-    local bcs = cs.def { min = 4, max = 18, default = 11, step = 0.01/4 }
+    ctl {
+        name = 'dry/wet',
+        controlspec = cs.def { default = 0.25 },
+        action = engine.drywet
+    }
+
+    local scs = cs.def { min = 10, max = 48000, default = 26460, quantum = 1/1000, warp = 'exp' }
+    local bcs = cs.def { min = 0, max = 18, default = 11, quantum = 0.01/2 }
 
     if style == 'simple' then
         ctl {
@@ -321,17 +327,13 @@ orgn.params.ulaw = function(style, callback)
             action = engine.samples
         }
         ctl {
-            name = 'samples_lag', action = engine.samples_lag,
-            controlspec = cs.def { default = 0.2, max = 2 }
-        }
-        ctl {
             name = 'bits',
             controlspec = bcs,
             action = engine.bits
         }
         ctl {
             name = 'drive',
-            controlspec = cs.def { min = 0, max = 0.3, default = 0.01, step = 0, quant = 1/100 },
+            controlspec = cs.def { min = 0, max = 1, default = 0.01, step = 1/1000, quant = 1/1000 },
             action = engine.drive
         }
         ctl {
@@ -340,8 +342,8 @@ orgn.params.ulaw = function(style, callback)
             action = engine.crackle
         }
         ctl {
-            name = 'crinkle',
-            controlspec = cs.def { min = 0, max = 1, default = 0 },
+            name = 'crinkle (!)',
+            controlspec = cs.def { min = -4, max = 1.12, default = 0, 1/5.12/100 },
             action = engine.crinkle
         }
         ctl {
@@ -354,15 +356,7 @@ orgn.params.ulaw = function(style, callback)
             controlspec = cs.def { min = 0, max = 20, default = 1.95 },
             action = engine.dustiness
         }
-        ctl {
-            name = 'bitnoise', action = engine.bitnoise,
-        }
     end
-    ctl {
-        name = 'dry/wet',
-        controlspec = cs.def { default = 0.25 },
-        action = engine.drywet
-    }
 
     return ids
 end
