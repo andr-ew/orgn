@@ -158,7 +158,7 @@ Engine_Orgn : CroneEngine {
                 gator.set(\velocity, id, vel);
                 gator.set(\hz, id, hz, hz, 0);
                 gator.set(\gate, id, 1);
-                dur.yield;
+                dur.max(0.01).yield;
                 gator.set(\gate, msg[1], 0);
             }.play
         });
@@ -169,7 +169,7 @@ Engine_Orgn : CroneEngine {
                 gator.set(\velocity, id, vel);
                 gator.set(\hz, id, start, end, dur);
                 gator.set(\gate, id, 1);
-                durTrig.yield;
+                durTrig.max(0.01).yield;
                 gator.set(\gate, msg[1], 0);
             }.play
         });

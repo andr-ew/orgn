@@ -36,7 +36,7 @@ intervals = {
 --ui
 orgn_ = nest_ {
     grid = nest_ {
-        scale = _grid.number { x = { 1, 4 }, y = 1 },
+        scale = _grid.number { x = { 1, 4 }, y = 1, v = 3 },
         ramp = _grid.control { x = { 5, 7 }, y = 1, v = -1 } :param('ramp'),
         mode = _grid.toggle { x = 8, y = 1 } :param('mode'),
         glide = _grid.number {
@@ -56,10 +56,10 @@ orgn_ = nest_ {
             action = function(s, v, t, d, add, rem)
                 local k = add or rem
                 local id = k.y * k.x
-                local iv = itervals[s.p.scale.v]
-                local oct = k.y-1 + k.x//#iv
+                local iv = intervals[s.p.scale.v]
+                local oct = k.y-3 + k.x//(#iv+1)
                 local deg = (k.x-1)%#iv+1
-                local hz = root * 2^oct * 2^(deg/12)
+                local hz = root * 2^oct * 2^(iv[deg]/12)
                 local vel = math.random()*0.2 + 0.85
 
                 if add then orgn.noteOn(id, hz, vel)
@@ -71,6 +71,7 @@ orgn_ = nest_ {
 
 function init()
     --params:read()
+    orgn_:init()
 end
 
 function cleanup() 
