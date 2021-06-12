@@ -41,9 +41,10 @@ orgn.noteOn = function(id, hz, vel)
     if mode == 'sustain' and glide <= 0 then
         engine.noteOn(id, hz, vel)
     elseif mode == 'sustain' and glide > 0 then
+        print(last, glide)
         engine.noteGlide(id, last, hz, glide, vel)
     elseif mode == 'transient' and glide <= 0 then
-        engine.noteTrig(id, hz, vel, adsr.a[1])
+        engine.noteTrig(id, hz, vel, math.max(adsr.a[1], 0.01))
     elseif mode == 'transient' and glide > 0 then
         engine.noteTrigGlide(id, hz, last, hz, glide, vel, adsr.a[1])
     end
