@@ -42,7 +42,7 @@ orgn_ = nest_ {
         glide = _grid.number {
             x = { 1, 3 }, y = 2,
             action = function(s, v)
-                params:set('glide', ({ 0, 0.3, 1 })[v])
+                params:set('glide', ({ 0, 0.2, 1 })[v])
             end
         },
         ratio = _grid.number {
@@ -70,11 +70,11 @@ orgn_ = nest_ {
 }
 
 function init()
-    --params:read()
+    params:read()
     orgn_:init()
 end
 
 function cleanup() 
-    --params:write()
+    params:write()
 end
 

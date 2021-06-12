@@ -29,7 +29,7 @@ Engine_Orgn : CroneEngine {
             done = \done.kr(1!ops); // done needs to be set based on release times (longest relsease channel gets a 1)
 
             //hz envelope (for glides)
-            var frq = XLine.kr(hz[0], hz[1], hz[2], doneAction:0);
+            var frq = XLine.kr(hz[0], hz[1], hz[2], doneAction:0) * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
 
             //the synth sound (3 lines!!!)
         	var env = EnvGen.kr(Env.adsr(a, d, s, r, 1, curve), gate, doneAction: (done * 2)); //adsr envelopes

@@ -30,7 +30,7 @@ for i, op in ipairs(ops) do
     adsr.r[i] = 0.2
 end
 
-local last = 0
+local last = 440
 local glide = 0
 local spread = 0
 local mode = 'sustain'
@@ -38,15 +38,21 @@ local mode = 'sustain'
 orgn.noteOn = function(id, hz, vel)
     -- engine.pan(<note id>, math.random()*2*spread - 1)
     
+    local function hz2st(h) return 12*math.log(h/440, 2) end
+    local d = hz2st(hz) - hz2st(last)
+    d = util.linexp(0, 76, 0.01, 0.8, math.abs(d))
+    local t = glide 
+        + (math.random() * 0.2) 
+        + ((d < math.huge) and d or 0)
+
     if mode == 'sustain' and glide <= 0 then
         engine.noteOn(id, hz, vel)
     elseif mode == 'sustain' and glide > 0 then
-        print(last, glide)
-        engine.noteGlide(id, last, hz, glide, vel)
+        engine.noteGlide(id, last, hz, t, vel)
     elseif mode == 'transient' and glide <= 0 then
         engine.noteTrig(id, hz, vel, math.max(adsr.a[1], 0.01))
     elseif mode == 'transient' and glide > 0 then
-        engine.noteTrigGlide(id, hz, last, hz, glide, vel, adsr.a[1])
+        engine.noteTrigGlide(id, last, hz, t, vel, adsr.a[1])
     end
 
     last = hz
@@ -98,16 +104,21 @@ orgn.params.synth = function(voice, env, envstyle, callback)
 
     --mixer objects
     local ratio = { 1, 2, 4,
-        p = 0,
         dt = 0,
         update = function(s)
-            local p = 2^s.p
             local r = {}
             for i, op in ipairs(ops) do 
                 local dt =  2^(s.dt * (i-1))
-                r[i] = s[i] * dt * p
+                r[i] = s[i] * dt
             end
             engine.batch('ratio', vc, table.unpack(r))
+        end
+    }
+    local pitch = {
+        off = 0,
+        mod = 0,
+        update = function(s)
+            engine.pitch(vc, 2^(s.off + s.mod))
         end
     }
     local amp = { 1, 0.5, 0.25,
@@ -143,7 +154,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     }
     ctl {
         name = 'detune',
-        controlspec = cs.new(),
+        controlspec = cs.def { quant = 0.01/10, step = 0 },
         action = function(v)
             ratio.dt = v
             ratio:update()
