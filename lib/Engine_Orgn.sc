@@ -147,7 +147,7 @@ Engine_Orgn : CroneEngine {
         //start a note gliding
         this.addCommand(\noteGlide, \sffff, { arg msg;
             var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5];
-            gator.set(\vel, id, vel);
+            gator.set(\velocity, id, vel);
             gator.set(\hz, id, start, end, dur);
             gator.set(\gate, id, 1);
         });
@@ -164,7 +164,7 @@ Engine_Orgn : CroneEngine {
         });
 
         this.addCommand(\noteTrigGlide, \sfffff, { arg msg;
-            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], durTrig = msg[4];
+            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], durTrig = msg[6];
             Routine {
                 gator.set(\velocity, id, vel);
                 gator.set(\hz, id, start, end, dur);
