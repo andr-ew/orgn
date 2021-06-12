@@ -1,3 +1,7 @@
+--TODO
+--add noteCycle, noteCyleGlide
+--add env 'cyle' mode
+
 local cs = require 'controlspec'
 
 local ops = { 'a', 'b', 'c' }
@@ -24,6 +28,32 @@ for i, op in ipairs(ops) do
     adsr.d[i] = 0
     adsr.s[i] = 1
     adsr.r[i] = 0.2
+end
+
+local last = 0
+local glide = 0
+local spread = 0
+local mode = 'sustain'
+
+orgn.noteOn = function(id, hz, vel)
+    -- engine.pan(<note id>, math.random()*2*spread - 1)
+    
+    if mode == 'sustain' and glide <= 0 then
+        engine.noteOn(id, hz, vel)
+    elseif mode == 'sustain' and glide > 0 then
+        engine.noteGlide(id, last, hz, glide, vel)
+    elseif mode == 'transient' and glide <= 0 then
+        engine.noteTrig(id, hz, vel, adsr.a[1])
+    elseif mode == 'transient' and glide > 0 then
+        engine.noteTrigGlide(id, hz, last, hz, glide, vel, adsr.a[1])
+    end
+
+    last = hz
+end
+orgn.noteOff = function(id)
+    if mode == 'sustain' then
+        engine.noteOff(id)
+    end
 end
 
 -- param:add wrapper with some shortcuts
@@ -118,15 +148,15 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             ratio:update()
         end
     }
-    -- these ones are accessed in the noteOn/noteOff functions
     ctl {
         name = 'glide',
-        controlspec = cs.def { units = 's' }
+        controlspec = cs.def { units = 's' },
+        action = function(v) glide = v end
     }
     ctl {
         name = 'spread',
-        controlspec = cs.new()
-        -- engine.pan(<note id>, math.random()*2*v - 1)
+        controlspec = cs.new(),
+        action = function(v) spread = v end
     }
 
 
@@ -139,7 +169,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
 
         -- env mixer
         local emx = {
-            time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75,
+            time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75, 
             update = function(s)
                 for i, op in ipairs(ops) do
                     local j = i - 2
@@ -178,6 +208,14 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                 controlspec = cs.new(),
                 action = function(v) emx.sustain = v; emx:update() end
             }
+        else
+            local mop = { 'sustain', 'transient' }
+            ctl {
+                name = 'mode', type = 'option', options = mop,
+                action = function(v)
+                    mode = mop[v]
+                end
+            }
         end
         ctl {
             name = 'span',
@@ -189,6 +227,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             controlspec = cs.def { min = -8, max = 8, default = -4 },
             action = function(v) emx.curve = v; emx:update() end
         }
+
     else
         for i, op in ipairs(ops) do
             ctl {
