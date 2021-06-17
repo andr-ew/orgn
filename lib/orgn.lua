@@ -30,6 +30,39 @@ for i, op in ipairs(ops) do
     adsr.r[i] = 0.2
 end
 
+local pitch = {
+    off = 0,
+    mod = 0,
+    update = function(s)
+        engine.pitch(vc, 2^(s.off) + s.mod/2)
+    end
+}
+local lfo = { 
+    rate = 0.4, mul = 0, phase = 0, quant = 0.01,
+    shape = function(p) return math.sin(2 * math.pi * p) end,
+    action = function(v)
+        pitch.mod = v; pitch:update()
+    end,
+    init = function(s)
+        clock.run(function()
+            while true do
+                clock.sleep(s.quant)
+
+                local T = 1/s.rate
+                local d = s.quant / T
+                s.phase = s.phase + d
+                while s.phase > 1 do s.phase = s.phase - 1 end
+
+                s.action(s.shape(s.phase) * s.mul)
+            end
+        end)
+    end
+}
+
+orgn.init = function()
+    lfo:init()
+end
+
 local last = 440
 local glide = 0
 local spread = 0
@@ -114,13 +147,6 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             engine.batch('ratio', vc, table.unpack(r))
         end
     }
-    local pitch = {
-        off = 0,
-        mod = 0,
-        update = function(s)
-            engine.pitch(vc, 2^(s.off + s.mod))
-        end
-    }
     local amp = { 1, 0.5, 0.25,
         l = 0,
         update = function(s)
@@ -144,12 +170,11 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     ctl {
         name = 'pitch',
         controlspec = cs.def {
-            min = -1, max = 1,
-            default = ratio.p
+            min = -1, max = 1
         },
         action = function(v)
-            ratio.p = v
-            ratio:update()
+            pitch.off = v
+            pitch:update()
         end
     }
     ctl {
@@ -266,6 +291,16 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             }
         end
     end
+    
+    params:add_separator('lfo')
+    ctl {
+        name = 'depth', controlspec = cs.def { quant = 0.01/10 },
+        action = function(v) lfo.mul = v end
+    }
+    ctl {
+        name = 'rate', controlspec = cs.def { min = 0, default = 0.4, max = 40, quant = 40/1000 },
+        action = function(v) lfo.rate = v end
+    }
 
     params:add_separator('osc')
 
@@ -350,7 +385,12 @@ orgn.params.ulaw = function(style, callback)
     ctl {
         name = 'dry/wet',
         controlspec = cs.def { default = 0.25 },
-        action = engine.drywet
+        action = function(v) engine.drywet(v) end
+    }
+    ctl {
+        name = 'adc in',
+        controlspec = cs.def { default = 1 },
+        action = function(v) engine.adc_in_amp(v) end
     }
 
     local scs = cs.def { min = 10, max = 48000, default = 26460, quantum = 1/1000, warp = 'exp' }
@@ -360,52 +400,48 @@ orgn.params.ulaw = function(style, callback)
         ctl {
             name = 'samples',
             controlspec = scs,
-            action = function(v)
-                engine.samples(v)
-            end
+            action = function(v) engine.samples(v) end
         }
         ctl {
             name = 'bits',
             controlspec = bcs,
-            action = function(v)
-                engine.bits(v)
-            end
+            action = function(v) engine.bits(v) end
         }
     else
         ctl {
             name = 'samples',
             controlspec = scs,
-            action = engine.samples
+            action = function(v) engine.samples(v) end
         }
         ctl {
             name = 'bits',
             controlspec = bcs,
-            action = engine.bits
+            action = function(v) engine.bits(v) end
         }
         ctl {
             name = 'drive',
             controlspec = cs.def { min = 0, max = 1, default = 0.01, step = 1/1000, quant = 1/1000 },
-            action = engine.drive
+            action = function(v) engine.drive(v) end
         }
         ctl {
             name = 'crackle',
             controlspec = cs.def { min = 0, max = 3, default = 0.1 },
-            action = engine.crackle
+            action = function(v) engine.crackle(v) end
         }
         ctl {
             name = 'crinkle (!)',
             controlspec = cs.def { min = -4, max = 1.12, default = 0, 1/5.12/100 },
-            action = engine.crinkle
+            action = function(v) engine.crinkle(v) end
         }
         ctl {
             name = 'dust',
             controlspec = cs.def { min = 0, max = 10, default = 1 },
-            action = engine.dust
+            action = function(v) engine.dust(v) end
         }
         ctl {
             name = 'dustiness',
             controlspec = cs.def { min = 0, max = 20, default = 1.95 },
-            action = engine.dustiness
+            action = function(v) engine.dustiness(v) end
         }
     end
 
