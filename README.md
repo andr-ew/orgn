@@ -3,7 +3,7 @@ a toy keyboard for norns
 
 ![orgn docs](lib/doc/orgn.png)
 
-## ui
+## other ui
 
 - norns
   - oscilliscope emulation for 3 operators (3 quadrants)
