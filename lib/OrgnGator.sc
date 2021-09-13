@@ -120,7 +120,7 @@ OrgnGator {
             if(exclude.indexOf(n).isNil, {
                 arg f = \s, cb = if(l > 1,
                     { f = f ++ \i; { arg msg; msg.removeAt(0); this.setAt(n, *msg) } },
-                    { { arg msg; msg.removeAt(0); [n, msg].postln; this.set(n, *msg) } });
+                    { { arg msg; msg.removeAt(0); this.set(n, *msg) } });
 
                 //l.do({ f = f ++ \f; });
                 f = f ++ \f;
