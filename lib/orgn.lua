@@ -4,12 +4,18 @@
 
 local cs = require 'controlspec'
 
+local envgraph = include 'lib/envgraph' -- modified version
+
 local ops = { 'a', 'b', 'c' }
 local orgn = { params = {} }
 
 local ids = {}
 local vc = 'all'
 local cb = function(id, v) end
+local last = 440
+local glide = 0
+local spread = 0
+local mode = 'sustain'
 
 -- adsr mixer object
 local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
@@ -21,6 +27,8 @@ local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
         end
         engine.batch('release', vc, table.unpack(s.r))
         engine.curve(vc, s.c)
+        
+        orgn.gfx.env:update()
     end
 }
 for i, op in ipairs(ops) do
@@ -29,6 +37,39 @@ for i, op in ipairs(ops) do
     adsr.s[i] = 1
     adsr.r[i] = 0.2
 end
+
+orgn.gfx = {
+    env = {
+        graph = {},
+        init = function(s, x, y, w, h, env)
+            env = env or 'asr'
+            for i,_ in ipairs(ops) do
+                if env == 'asr' then
+                    s.env = 'asr'
+                    s.graph[i] = {
+                        sustain = envgraph.new_asr(0, 20, 0, 1),
+                        transient = envgraph.new_ar(0, 20, 0, 1)
+                    }
+                    s.graph[i].sustain:set_position_and_size(x, y, w, h)
+                    s.graph[i].transient:set_position_and_size(x, y, w*2, h)
+                end
+            end
+        end,
+        update = function(s)
+            for i,_ in ipairs(ops) do
+                if s.env == 'asr' then
+                    s.graph[i].sustain:edit_asr(adsr.a[i], adsr.r[i], 1, adsr.c)
+                    s.graph[i].transient:edit_ar(adsr.a[i], adsr.r[i], 1, adsr.c)
+                end
+            end
+        end
+    },
+    draw = function(s)
+        for i,_ in ipairs(ops) do
+            s.env.graph[i][mode]:redraw(({2, 4, 15})[i])
+        end
+    end
+}
 
 local pitch = {
     off = 0,
@@ -62,11 +103,6 @@ local lfo = {
 orgn.init = function()
     lfo:init()
 end
-
-local last = 440
-local glide = 0
-local spread = 0
-local mode = 'sustain'
 
 orgn.noteOn = function(id, hz, vel)
     -- engine.pan(<note id>, math.random()*2*spread - 1)
@@ -200,7 +236,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     params:add_separator('env')
 
     local ds = env == 'adsr'
-    local cstime = cs.new(0.001, 6, 'exp', 0, 0.2, "s")
+    local cstime = cs.new(0.001, 10, 'exp', 0, 0.2, "s")
 
     if envstyle == 'linked' then
 
@@ -209,7 +245,8 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75, 
             update = function(s)
                 for i, op in ipairs(ops) do
-                    local j = i - 2
+                    local j = i - 1
+                    local k = #ops - i
                     local a, r
                     if s.ramp > 0 then
                         r = s.time
@@ -219,11 +256,12 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                         a = s.time
                     end
 
-                    adsr.a[i] = math.max(a * (1 + j*math.abs(s.span)), adsr.min)
-                    adsr.d[i] = math.max(r * (1 + j*s.span), adsr.min)
-                    adsr.s[i] = s.sustain * (1 + j*s.span)
-                    adsr.r[i] = math.max(r * (1 + j*s.span), adsr.min)
+                    adsr.a[i] = math.max(a * (1 + math.abs(k*s.span)), adsr.min)
+                    adsr.d[i] = math.max(r * (1 + k*s.span), adsr.min)
+                    adsr.s[i] = s.sustain
+                    adsr.r[i] = math.max(r * (1 + k*s.span), adsr.min)
                 end
+                adsr.c = s.curve
 
                 adsr:update(ds)
             end
@@ -257,7 +295,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         ctl {
             name = 'span',
             controlspec = cs.def { min = -1, max = 1, default = 0 },
-            action = function(v) emx.span = v; emx:update() end
+            action = function(v) emx.span = -v; emx:update() end
         }
         ctl {
             name = 'curve',
@@ -307,7 +345,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     for i, op in ipairs(ops) do
         ctl {
             name = 'amp ' .. op,
-            controlspec = cs.def { default = 1/(2^(i - 1)) },
+            controlspec = cs.def { default = ({ 1, 0.5, 0 })[i] },
             action = function(v) engine.amp(vc, i, v * util.dbamp(params:get('level'))) end
         }
     end

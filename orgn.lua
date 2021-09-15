@@ -38,13 +38,12 @@ for k,v in pairs(params.params) do --read all params == lazy way
     end
 end
 
-
 local name_map = tab.invert(map_name)
 -- local id_map = tab.invert(map_id)
 
 local enc_defaults = {
     { name_map['time'], name_map['amp b'], name_map['pm c -> b'] },
-    { name_map['span'], name_map['level'], name_map['pm c -> a'] },
+    { name_map['span'], name_map['detune'], name_map['pm c -> a'] },
 }
 local enc_map_option_id = {}
 
@@ -194,10 +193,18 @@ local y = {
     gfx = { mar, mar + mul.gfx.y }
 }
 
+orgn.gfx.env:init(x.gfx[2], y.gfx[2], mul.gfx.x, mul.gfx.y, 'asr')
+
 --ui
 orgn_ = nest_ {
     grid = (g.device.cols==8 and grid64_ or grid128_):connect { g = g },
     norns = nest_ {
+        gfx = _screen {
+            redraw = function() 
+                orgn.gfx:draw()
+                return true -- return high dirty flag to redraw every frame
+            end
+        },
         tab = _txt.key.option {
             n = { 2, 3 }, x = 128, y = 64, align = {'right', 'bottom' }, 
             font_size = 16, margin = 3,
