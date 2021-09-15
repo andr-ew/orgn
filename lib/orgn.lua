@@ -38,7 +38,7 @@ local pitch = {
     end
 }
 local lfo = { 
-    rate = 0.4, mul = 0, phase = 0, quant = 0.01,
+    rate = 0.4, mul = 0, phase = 0, quant = 0.05,
     shape = function(p) return math.sin(2 * math.pi * p) end,
     action = function(v)
         pitch.mod = v; pitch:update()
@@ -344,7 +344,7 @@ end
 -- 'simple': three controls, the rest are parametized from the "bits" control
 -- 'complex': individual parameter for each control under the hood
 -- callback: runs at the end of evey action function (args: id, value)
-orgn.params.ulaw = function(style, callback)
+orgn.params.fx = function(style, callback)
     style = style or 'simple'
     cb = callback or cb
     ids = {}
@@ -381,7 +381,7 @@ orgn.params.ulaw = function(style, callback)
     [ drywet, 1  ]
     ]]
 
-    params:add_separator('u-law')
+    params:add_separator('fx')
     ctl {
         name = 'dry/wet',
         controlspec = cs.def { default = 0.25 },
