@@ -193,14 +193,17 @@ local y = {
     ctl = { split.y, 64 - mar.bottom },
     gfx = { mar.top, mar.top + mul.gfx.y }
 }
-local w = { gfx = ((128 - mar.left - mar.right) / div.x.gfx) - gap*2 }
+local w = { 
+    gfx = ((128 - mar.left - mar.right) / div.x.gfx) - gap*2, 
+    ctl = ((128 - mar.left - mar.right) / div.x.ctl) - gap*2
+}
 local h = { gfx = (split.y - mar.left - mar.right) / div.y.gfx - gap*2 }
 
 orgn.gfx.env:init(x.gfx[2], y.gfx[2], mul.gfx.x, mul.gfx.y, 'asr')
 orgn.gfx.osc:init(
-    { x = x.gfx[1], y = y.gfx[2], w = w.gfx, h = h.gfx }, 
-    { x = x.gfx[1], y = y.gfx[1], w = w.gfx, h = h.gfx }, 
-    { x = x.gfx[2], y = y.gfx[1], w = w.gfx, h = h.gfx }
+    { x = x.ctl[1], y = y.gfx[1], w = w.ctl, h = h.gfx }, 
+    { x = x.ctl[2], y = y.gfx[1], w = w.ctl, h = h.gfx }, 
+    { x = x.ctl[3], y = y.gfx[1], w = w.ctl, h = h.gfx }
 )
 
 --ui

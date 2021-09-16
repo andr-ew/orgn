@@ -69,7 +69,8 @@ orgn.gfx = {
         end
     },
     osc = {
-        graph = {},
+        -- graph = {},
+        pos = {},
         rate = 1,
         slip = 0.0,
         slip_max = 0.005,
@@ -85,26 +86,46 @@ orgn.gfx = {
         init = function(s, ...)
             local pos = { ... } --pos[op] = { x, y, w, h }
 
-            for i,_ in ipairs(ops) do
-                s.graph[i] = graph.new(0, 3/4, 'lin', -1, 1, 'lin')
-                s.graph[i]:set_position_and_size(pos[i].x, pos[i].y, pos[i].w, pos[i].h)
-                s.graph[i]:add_function(function(x) 
-                     --TODO: pm emulation
-                     return math.sin((x + s.phase[i] + 1/4) * 4 * math.pi)
-                end, 4)
-            end
+            --for i,_ in ipairs(ops) do
+            --    s.graph[i] = graph.new(0, 3/4, 'lin', -1, 1, 'lin')
+            --    s.graph[i]:set_position_and_size(pos[i].x, pos[i].y, pos[i].w, pos[i].h)
+            --    s.graph[i]:add_function(function(x) 
+            --         --TODO: pm emulation
+            --         return math.sin((x + s.phase[i] + 1/4) * 4 * math.pi)
+            --    end, 4)
+            --end
+            s.pos = pos
 
             s:reslip_max()
+        end,
+        draw = function(s, i)
+            local f = function(x) 
+                --TODO: pm emulation
+                return math.sin((x + s.phase[i]) * 2 * math.pi)
+            end
+            local T = 1
+
+            local left, top, w, h = s.pos[i].x, s.pos[i].y, s.pos[i].w, s.pos[i].h
+
+            screen.level(15)
+            for i = 1,w do
+                 local x = i / w * T
+                 local y = (f(x)+1) * h / 2
+                 screen.pixel(i + left, y + top)
+            end
+            screen.fill()
         end
     },
     draw = function(s)
         for i,_ in ipairs(ops) do
-            s.osc.phase[i] = s.osc.phase[i] + (ratio[i] / ratio[math.max(i-1, 1)]) + s.osc.slip % 1
+            --math.max(i-1, 1)
+            s.osc.phase[i] = s.osc.phase[i] + (ratio[i] / ratio[1]) + s.osc.slip % 1
             s.osc:reslip()
 
             s.env.graph[i][mode]:redraw(({2, 4, 15})[i])
-            s.osc.graph[i]:update_functions()
-            s.osc.graph[i]:redraw()
+            -- s.osc.graph[i]:update_functions()
+            -- s.osc.graph[i]:redraw()
+            s.osc:draw(i)
         end
     end
 }
