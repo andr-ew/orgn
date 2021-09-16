@@ -8,6 +8,7 @@ local envgraph = include 'orgn/lib/envgraph' -- modified version
 local graph = require 'graph'
 
 local ops = { 'a', 'b', 'c' }
+local spo = tab.invert(ops)
 local orgn = { params = {} }
 
 local ids = {}
@@ -99,11 +100,24 @@ orgn.gfx = {
             s:reslip_max()
         end,
         draw = function(s)
+            local l = { 0, 0, 0 }
             local f = {}
-            for i,_ in ipairs(ops) do
+
+            for i,v in ipairs(ops) do
+                local idx = {}
+                for ii,vv in ipairs(ops) do
+                    idx[ii] = params:get('pm_'..vv..'_'..v)
+                end
+
                 f[i] = function(x) 
-                    --TODO: pm emulation
-                    return math.sin((x + s.phase[i]) * 2 * math.pi)
+                    local y = math.sin((
+                         x + s.phase[i] 
+                         + l[1]*idx[1]
+                         + l[2]*idx[2]
+                         + l[3]*idx[3]
+                    ) * 2 * math.pi)
+                    l[i] = y
+                    return y
                 end
             end
 
