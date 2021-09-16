@@ -205,6 +205,7 @@ orgn.gfx.osc:init(
     { x = x.ctl[2], y = y.gfx[1], w = w.ctl, h = h.gfx }, 
     { x = x.ctl[3], y = y.gfx[1], w = w.ctl, h = h.gfx }
 )
+orgn.gfx.samples:init(x.gfx[1], y.gfx[2], h.gfx)
 
 --ui
 orgn_ = nest_ {

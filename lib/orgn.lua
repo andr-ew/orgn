@@ -116,6 +116,19 @@ orgn.gfx = {
             screen.fill()
         end
     },
+    samples = {
+        pos = {},
+        init = function(s, ...)
+            s.x, s.y, s.h = ... 
+        end,
+        draw = function(s)
+            screen.level(15)
+            screen.font_size(40)
+            screen.font_face(4)
+            screen.move(s.x, s.y + s.h*2)
+            screen.text('**')
+        end
+    },
     draw = function(s)
         for i,_ in ipairs(ops) do
             --math.max(i-1, 1)
@@ -123,10 +136,9 @@ orgn.gfx = {
             s.osc:reslip()
 
             s.env.graph[i][mode]:redraw(({2, 4, 15})[i])
-            -- s.osc.graph[i]:update_functions()
-            -- s.osc.graph[i]:redraw()
             s.osc:draw(i)
         end
+        s.samples:draw()
     end
 }
 
@@ -298,7 +310,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     params:add_separator('env')
 
     local ds = env == 'adsr'
-    local cstime = cs.new(0.001, 10, 'exp', 0, 0.2, "s")
+    local cstime = cs.new(0.001, 10, 'exp', 0, 2.4, "s")
 
     if envstyle == 'linked' then
 
@@ -337,7 +349,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         }
         ctl {
             name = 'ramp',
-            controlspec = cs.def { min = -1, max = 1, default = 1 },
+            controlspec = cs.def { min = -1, max = 1, default = 0 },
             action = function(v) emx.ramp = v; emx:update() end
         }
         if ds then
