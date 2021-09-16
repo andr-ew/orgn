@@ -154,9 +154,9 @@ local grid128_ = nest_ {
         ratio = nest_ {
             c = _grid.number { x = { 1, 16 }, y = 1 } :param('ratio_c'),
             b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
-            a = _grid.number { x = { 1, 4 }, y = 3 } :param('ratio_a'),
+            a = _grid.number { x = { 1, 7 }, y = 3 } :param('ratio_a'),
         },
-        mode = _grid.toggle { x = 5, y = 3, lvl = hl } :param('mode'),
+        mode = _grid.toggle { x = 8, y = 3, lvl = hl } :param('mode'),
         --TODO: preset
         ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
 
@@ -174,26 +174,34 @@ local grid128_ = nest_ {
     }
 }
 
-local mar = 2
+local mar = { left = 2, top = 4, right = 0, bottom = 1 }
+local gap = 4
 local split = { y = 64 * 3/4 }
 local div = { x = { ctl = 3, gfx = 2 }, y = { ctl = 1, gfx = 2 } }
 local mul = { 
-    ctl = { x = (128 - mar*(1 +  div.x.ctl)) / div.x.ctl }, 
+    ctl = { x = (128 - mar.left - mar.right - (div.x.ctl - 1)*gap) / div.x.ctl }, 
     gfx = { 
-        x = (128 - mar*(1 + div.x.gfx)) / div.x.gfx,
-        y = (split.y - mar*(1 + div.y.gfx)) / div.y.gfx,
+        x = (128 - mar.left - mar.right - (gap * (div.x.gfx - 1))) / div.x.gfx,
+        y = (split.y - mar.top - mar.bottom - (gap * (div.y.gfx - 1))) / div.y.gfx,
     }
 }
 local x = { 
-    ctl = { mar, mar + mul.ctl.x, mar + mul.ctl.x*2, 128 - mar },
-    gfx = { mar, mar + mul.gfx.x }
+    ctl = { mar.left, mar.left + mul.ctl.x, mar.left + mul.ctl.x*2, 128 - mar.right },
+    gfx = { mar.left, mar.left + mul.gfx.x }
 }
 local y = {
-    ctl = { split.y + mar, 64 - mar },
-    gfx = { mar, mar + mul.gfx.y }
+    ctl = { split.y, 64 - mar.bottom },
+    gfx = { mar.top, mar.top + mul.gfx.y }
 }
+local w = { gfx = ((128 - mar.left - mar.right) / div.x.gfx) - gap*2 }
+local h = { gfx = (split.y - mar.left - mar.right) / div.y.gfx - gap*2 }
 
 orgn.gfx.env:init(x.gfx[2], y.gfx[2], mul.gfx.x, mul.gfx.y, 'asr')
+orgn.gfx.osc:init(
+    { x = x.gfx[1], y = y.gfx[2], w = w.gfx, h = h.gfx }, 
+    { x = x.gfx[1], y = y.gfx[1], w = w.gfx, h = h.gfx }, 
+    { x = x.gfx[2], y = y.gfx[1], w = w.gfx, h = h.gfx }
+)
 
 --ui
 orgn_ = nest_ {
@@ -236,6 +244,7 @@ orgn_ = nest_ {
 function init()
     orgn.init()
     -- params:read()
+    params:bang()
     orgn_:init()
 end
 

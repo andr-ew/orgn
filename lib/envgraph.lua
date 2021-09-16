@@ -8,7 +8,7 @@
 local EnvGraph = {}
 EnvGraph.__index = EnvGraph
 
-local Graph = require "graph"
+local Graph = include 'orgn/lib/graph'
 
 
 ------------------------------------------------------------MODS------------------------

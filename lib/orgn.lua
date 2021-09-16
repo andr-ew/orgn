@@ -4,7 +4,8 @@
 
 local cs = require 'controlspec'
 
-local envgraph = include 'lib/envgraph' -- modified version
+local envgraph = include 'orgn/lib/envgraph' -- modified version
+local graph = require 'graph'
 
 local ops = { 'a', 'b', 'c' }
 local orgn = { params = {} }
@@ -16,6 +17,8 @@ local last = 440
 local glide = 0
 local spread = 0
 local mode = 'sustain'
+local ratio = { 1, 2, 4 }
+local amp = { 1, 0.5, 0 }
 
 -- adsr mixer object
 local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
@@ -38,6 +41,7 @@ for i, op in ipairs(ops) do
     adsr.r[i] = 0.2
 end
 
+local fps = 30
 orgn.gfx = {
     env = {
         graph = {},
@@ -64,9 +68,43 @@ orgn.gfx = {
             end
         end
     },
+    osc = {
+        graph = {},
+        rate = 1,
+        slip = 0.0,
+        slip_max = 0.005,
+        phase = { 0, 0, 0 },
+        --TODO: envelope emulation 
+        lvl = { 1, 1, 1 },
+        reslip = function(s)
+            s.slip = (math.random()*2 - 1) * s.slip_max
+        end,
+        reslip_max = function(s)
+            s.slip_max = math.random() * 0.00125
+        end,
+        init = function(s, ...)
+            local pos = { ... } --pos[op] = { x, y, w, h }
+
+            for i,_ in ipairs(ops) do
+                s.graph[i] = graph.new(0, 3/4, 'lin', -1, 1, 'lin')
+                s.graph[i]:set_position_and_size(pos[i].x, pos[i].y, pos[i].w, pos[i].h)
+                s.graph[i]:add_function(function(x) 
+                     --TODO: pm emulation
+                     return math.sin((x + s.phase[i] + 1/4) * 4 * math.pi)
+                end, 4)
+            end
+
+            s:reslip_max()
+        end
+    },
     draw = function(s)
         for i,_ in ipairs(ops) do
+            s.osc.phase[i] = s.osc.phase[i] + (ratio[i] / ratio[math.max(i-1, 1)]) + s.osc.slip % 1
+            s.osc:reslip()
+
             s.env.graph[i][mode]:redraw(({2, 4, 15})[i])
+            s.osc.graph[i]:update_functions()
+            s.osc.graph[i]:redraw()
         end
     end
 }
@@ -125,6 +163,7 @@ orgn.noteOn = function(id, hz, vel)
     end
 
     last = hz
+    orgn.gfx.osc:reslip_max()
 end
 orgn.noteOff = function(id)
     if mode == 'sustain' then
@@ -179,6 +218,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             for i, op in ipairs(ops) do 
                 local dt =  2^(s.dt * (i-1))
                 r[i] = s[i] * dt
+                ratio[i] = r[i]
             end
             engine.batch('ratio', vc, table.unpack(r))
         end
@@ -189,6 +229,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             local a = {}
             for i, op in ipairs(ops) do 
                 a[i] = util.dbamp(s.l) * s[i]
+                amp[i] = a[i]
             end
             engine.batch('amp', vc, table.unpack(a))
         end
@@ -241,6 +282,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     if envstyle == 'linked' then
 
         -- env mixer
+        -- TODO: fix ramp = -1
         local emx = {
             time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75, 
             update = function(s)
