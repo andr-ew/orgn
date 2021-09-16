@@ -98,20 +98,27 @@ orgn.gfx = {
 
             s:reslip_max()
         end,
-        draw = function(s, i)
-            local f = function(x) 
-                --TODO: pm emulation
-                return math.sin((x + s.phase[i]) * 2 * math.pi)
+        draw = function(s)
+            local f = {}
+            for i,_ in ipairs(ops) do
+                f[i] = function(x) 
+                    --TODO: pm emulation
+                    return math.sin((x + s.phase[i]) * 2 * math.pi)
+                end
             end
+
             local T = 1
-
-            local left, top, w, h = s.pos[i].x, s.pos[i].y, s.pos[i].w, s.pos[i].h
-
+            local w, h = s.pos[1].w, s.pos[1].h
             screen.level(15)
-            for i = 1,w do
-                 local x = i / w * T
-                 local y = (f(x)+1) * h / 2
-                 screen.pixel(i + left, y + top)
+
+            for ii = 1,w do
+                for i,_ in ipairs(ops) do
+                    local left, top = s.pos[i].x, s.pos[i].y
+
+                    local x = ii / w * T
+                    local y = (f[i](x)+1) * h / 2
+                    screen.pixel(ii + left, y + top)
+                end
             end
             screen.fill()
         end
@@ -136,8 +143,8 @@ orgn.gfx = {
             s.osc:reslip()
 
             s.env.graph[i][mode]:redraw(({2, 4, 15})[i])
-            s.osc:draw(i)
         end
+        s.osc:draw()
         s.samples:draw()
     end
 }
