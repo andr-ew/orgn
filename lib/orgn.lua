@@ -19,7 +19,7 @@ local glide = 0
 local spread = 0
 local mode = 'sustain'
 local ratio = { 1, 2, 4 }
-local amp = { 1, 0.5, 0 }
+local lvl = { 1, 0.5, 0 }
 
 -- adsr mixer object
 local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
@@ -125,15 +125,26 @@ orgn.gfx = {
             local w, h = s.pos[1].w, s.pos[1].h
             screen.level(15)
 
-            for ii = 1,w do
+            local fpf = fps*2 - 1
+            for iii = 1, fpf do
                 for i,_ in ipairs(ops) do
-                    local left, top = s.pos[i].x, s.pos[i].y
+                    s.phase[i] = s.phase[i] + (ratio[i] * 1/fps * fpf) --+ s.slip 
+                    % 1
+                end
 
-                    local x = ii / w * T
-                    local y = (f[i](x)+1) * h / 2
-                    screen.pixel(ii + left, y + top)
+                for ii = 1,w do
+                    for i,_ in ipairs(ops) do
+                        local left, top = s.pos[i].x, s.pos[i].y
+
+                        local x = ii / w * T
+                        local y = f[i](x)
+                        if iii % fpf == 0 then 
+                            screen.pixel(ii + left, (((y * lvl[i])+1) * h / 2) + top) 
+                        end
+                    end
                 end
             end
+            s:reslip()
             screen.fill()
         end
     },
@@ -153,9 +164,6 @@ orgn.gfx = {
     draw = function(s)
         for i,_ in ipairs(ops) do
             --math.max(i-1, 1)
-            s.osc.phase[i] = s.osc.phase[i] + (ratio[i] / ratio[1]) + s.osc.slip % 1
-            s.osc:reslip()
-
             s.env.graph[i][mode]:redraw(({2, 4, 15})[i])
         end
         s.osc:draw()
@@ -283,7 +291,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             local a = {}
             for i, op in ipairs(ops) do 
                 a[i] = util.dbamp(s.l) * s[i]
-                amp[i] = a[i]
+                lvl[i] = a[i]
             end
             engine.batch('amp', vc, table.unpack(a))
         end
@@ -442,7 +450,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         ctl {
             name = 'amp ' .. op,
             controlspec = cs.def { default = ({ 1, 0.5, 0 })[i] },
-            action = function(v) engine.amp(vc, i, v * util.dbamp(params:get('level'))) end
+            action = function(v) amp[i] = v; amp:update(i) end
         }
     end
     for i, op in ipairs(ops) do
