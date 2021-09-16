@@ -205,7 +205,7 @@ orgn.gfx.osc:init(
     { x = x.ctl[2], y = y.gfx[1], w = w.ctl, h = h.gfx }, 
     { x = x.ctl[3], y = y.gfx[1], w = w.ctl, h = h.gfx }
 )
-orgn.gfx.samples:init(x.gfx[1], y.gfx[2], h.gfx)
+orgn.gfx.samples:init(x.ctl[2] - gap, y.gfx[2] + gap, h.gfx)
 
 --ui
 orgn_ = nest_ {
@@ -218,7 +218,7 @@ orgn_ = nest_ {
             end
         },
         tab = _txt.key.option {
-            n = { 2, 3 }, x = 128, y = 64, align = {'right', 'bottom' }, 
+            n = { 2, 3 }, x = 128, y = 62, align = {'right', 'bottom' }, 
             font_size = 16, margin = 3,
             options = function() 
                 local t = {}; for i = 1, pages do t[i] = '.' end; return t
@@ -229,9 +229,11 @@ orgn_ = nest_ {
                 local id = function() return map_id[params:get(
                     enc_map_option_id[i][ii]
                 )] end
-                print(ii, id())
+                local xx = { x.gfx[1], x.gfx[1], x.gfx[2] }
+                local yy = { y.gfx[2] + gap, y.ctl[1], y.ctl[1] }
+                
                 return _txt.enc.control {
-                    n = ii, x = x.ctl[ii], y = y.ctl[1], flow = 'y',
+                    n = ii, x = xx[ii], y = yy[ii], flow = 'y',
                     value = function() return params:get(id()) end,
                     action = function(s, v) params:set(id(), v) end,
                     controlspec = function() return params:lookup_param(id()).controlspec end,

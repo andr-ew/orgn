@@ -126,7 +126,7 @@ orgn.gfx = {
             screen.font_size(40)
             screen.font_face(4)
             screen.move(s.x, s.y + s.h*2)
-            screen.text('**')
+            screen.text('*')
         end
     },
     draw = function(s)
