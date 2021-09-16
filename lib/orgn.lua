@@ -78,26 +78,15 @@ orgn.gfx = {
         phase = { 0, 0, 0 },
         --TODO: envelope emulation 
         lvl = { 1, 1, 1 },
-        reslip = function(s)
-            s.slip = (math.random()*2 - 1) * s.slip_max
-        end,
-        reslip_max = function(s)
-            s.slip_max = math.random() * 0.00125
-        end,
+        -- reslip = function(s)
+        --     s.slip = (math.random()*2 - 1) * s.slip_max
+        -- end,
+        -- reslip_max = function(s)
+        --     s.slip_max = math.random() * 0.00125
+        -- end,
         init = function(s, ...)
             local pos = { ... } --pos[op] = { x, y, w, h }
-
-            --for i,_ in ipairs(ops) do
-            --    s.graph[i] = graph.new(0, 3/4, 'lin', -1, 1, 'lin')
-            --    s.graph[i]:set_position_and_size(pos[i].x, pos[i].y, pos[i].w, pos[i].h)
-            --    s.graph[i]:add_function(function(x) 
-            --         --TODO: pm emulation
-            --         return math.sin((x + s.phase[i] + 1/4) * 4 * math.pi)
-            --    end, 4)
-            --end
             s.pos = pos
-
-            s:reslip_max()
         end,
         draw = function(s)
             local l = { 0, 0, 0 }
@@ -121,15 +110,14 @@ orgn.gfx = {
                 end
             end
 
-            local T = 1
+            local T = 1 + 1/2
             local w, h = s.pos[1].w, s.pos[1].h
             screen.level(15)
 
             local fpf = fps*2 - 1
             for iii = 1, fpf do
                 for i,_ in ipairs(ops) do
-                    s.phase[i] = s.phase[i] + (ratio[i] * 1/fps * fpf) --+ s.slip 
-                    % 1
+                    s.phase[i] = s.phase[i] + (ratio[i] * 1/fps * fpf) % 1
                 end
 
                 for ii = 1,w do
@@ -144,7 +132,6 @@ orgn.gfx = {
                     end
                 end
             end
-            s:reslip()
             screen.fill()
         end
     },
@@ -225,7 +212,6 @@ orgn.noteOn = function(id, hz, vel)
     end
 
     last = hz
-    orgn.gfx.osc:reslip_max()
 end
 orgn.noteOff = function(id)
     if mode == 'sustain' then
