@@ -91,19 +91,20 @@ orgn.gfx = {
         draw = function(s)
             local l = { 0, 0, 0 }
             local f = {}
+            local idx = {}
 
             for i,v in ipairs(ops) do
-                local idx = {}
+                idx[i] = {}
                 for ii,vv in ipairs(ops) do
-                    idx[ii] = params:get('pm_'..vv..'_'..v)
+                    idx[i][ii] = params:get('pm_'..vv..'_'..v)
                 end
 
                 f[i] = function(x) 
                     local y = math.sin((
                          x + s.phase[i] 
-                         + l[1]*idx[1]
-                         + l[2]*idx[2]
-                         + l[3]*idx[3]
+                         + l[1]*idx[i][1]
+                         + l[2]*idx[i][2]
+                         + l[3]*idx[i][3]
                     ) * 2 * math.pi)
                     l[i] = y
                     return y
@@ -127,7 +128,10 @@ orgn.gfx = {
                         local x = ii / w * T
                         local y = f[i](x)
                         if iii % fpf == 0 then 
-                            screen.pixel(ii + left, (((y * lvl[i])+1) * h / 2) + top) 
+                            local a = math.max(lvl[i], util.explin(0.0001, 1, 0, 1, 
+                                (math.min(idx[i][1], idx[i][2], idx[i][3])/10)^2
+                            ))
+                            screen.pixel(ii + left, (((y * a)+1) * h / 2) + top) 
                         end
                     end
                 end
