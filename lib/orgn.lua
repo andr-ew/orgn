@@ -128,8 +128,9 @@ orgn.gfx = {
                         local x = ii / w * T
                         local y = f[i](x)
                         if iii % fpf == 0 then 
+
                             local a = math.max(lvl[i], util.explin(0.0001, 1, 0, 1, 
-                                (math.min(idx[i][1], idx[i][2], idx[i][3])/10)^2
+                                (math.max(idx[1][i], idx[2][i], idx[3][i])/10)^2
                             ))
                             screen.pixel(ii + left, (((y * a)+1) * h / 2) + top) 
                         end
