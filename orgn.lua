@@ -1,6 +1,13 @@
 -- a toy keyboard
 
+--globals
+
+local pages = 2 --number of encoder control pages, you can chage this if you want more
+
+local hl = { 4, 15 }
 function r() norns.script.load(norns.state.script) end
+
+--includes
 
 tab = require 'tabutil'
 cs = require 'controlspec'
@@ -18,16 +25,19 @@ orgn = include 'orgn/lib/orgn'
 
 engine.name = "Orgn"
 
-pages = 2 --number of encoder control pages
-
-local hl = { 4, 15 }
-
 --add params
+
 params:add { id = 'none', type = 'control', contolspec = cs.new() }
 params:hide 'none'
 
 orgn.params.synth('all', 'asr', 'linked', function() grid_redraw() end)
 orgn.params.fx('complex')
+
+params:add_separator('tuning')
+params:add {
+    type='number', name='scale preset', id='scale_preset', min = 1, max = 8,
+    default = 1, action = function() redraw() end
+}
 
 params:add_separator('map')
 
@@ -66,8 +76,8 @@ for i = 1, pages do
     end
 end
 
-
 --midi keyboard
+
 m = midi.connect()
 m.event = function(data)
     local msg = midi.to_msg(data)
@@ -79,27 +89,22 @@ m.event = function(data)
 end
 
 --grid
+
 g = grid.connect()
 
-root = 110 * 2^(5/12) -- d
-intervals = { 
-    -- { 0, 2, 5, 7, 9 },
-    -- { 0, 2, 5, 7, 11 },
-    { 0, 2, 4, 7, 9 },
-    { 0, 2, 5, 7, 10 },
-}
-
-local function key(s, v, t, d, add, rem)
+local function grid_note(s, v, t, d, add, rem)
     local k = add or rem
-    local id = k.y * k.x
-    local iv = intervals[s.p.scale.v]
-    local oct = k.y-3 + k.x//(#iv+1)
-    local deg = (k.x-1)%#iv+1
-    local hz = root * 2^oct * 2^(iv[deg]/12)
+    local id = k.x + (k.y * 16)
     local vel = math.random()*0.2 + 0.85
+
+    local hz = 440 * tune.hz(params:get('scale_preset'), k.x, k.y)
 
     if add then orgn.noteOn(id, hz, vel)
     elseif rem then orgn.noteOff(id) end
+end
+
+local kb_lvl = function(s, x, y)
+    return tune.is_tonic(params:get('scale_preset'), x, y) and { 4, 15 } or { 0, 15 }
 end
 
 local grid64_ = nest_ {
@@ -119,7 +124,9 @@ local grid64_ = nest_ {
                 params:set('ratio_c', ({ 2, 4, 7, 8, 10 })[v])
             end
         },
-        keyboard = _grid.momentary { x = { 1, 8 }, y = { 3, 8 }, count = 8, action = key }
+        keyboard = _grid.momentary { 
+            x = { 1, 8 }, y = { 3, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
+        }
     },
     p = _grid.pattern {
         x = { 1, 2 }, y = 1,
@@ -162,7 +169,9 @@ local grid128_ = nest_ {
         mode = _grid.toggle { x = 8, y = 3, lvl = hl } :param('mode'),
         --TODO: preset / octave ?
         ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
-        keyboard = _grid.momentary { x = { 1, 13 }, y = { 4, 8 }, count = 8, action = key },
+        keyboard = _grid.momentary { 
+            x = { 1, 13 }, y = { 4, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
+        },
         scale = _grid.number { x = 14, y = { 4, 8 }, lvl = hl },
         glide = _grid.number {
             x = 15, y = { 4, 8 },

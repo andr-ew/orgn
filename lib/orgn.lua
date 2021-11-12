@@ -330,7 +330,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     params:add_separator('env')
 
     local ds = env == 'adsr'
-    local cstime = cs.new(0.001, 10, 'exp', 0, 2.4, "s")
+    local cstime = cs.new(0.001, 10, 'exp', 0, 0.4, "s")
 
     if envstyle == 'linked' then
 
