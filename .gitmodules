@@ -1,3 +1,6 @@
 [submodule "lib/nest"]
 	path = lib/nest
 	url = https://github.com/andr-ew/nest
+[submodule "lib/tune"]
+	path = lib/tune
+	url = git@github.com:andr-ew/tune_.git

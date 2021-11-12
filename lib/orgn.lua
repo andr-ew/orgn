@@ -4,12 +4,22 @@
 
 local cs = require 'controlspec'
 
+local envgraph = include 'orgn/lib/envgraph' -- modified version
+local graph = require 'graph'
+
 local ops = { 'a', 'b', 'c' }
+local spo = tab.invert(ops)
 local orgn = { params = {} }
 
 local ids = {}
 local vc = 'all'
 local cb = function(id, v) end
+local last = 440
+local glide = 0
+local spread = 0
+local mode = 'sustain'
+local ratio = { 1, 2, 4 }
+local lvl = { 1, 0.5, 0 }
 
 -- adsr mixer object
 local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
@@ -21,6 +31,8 @@ local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
         end
         engine.batch('release', vc, table.unpack(s.r))
         engine.curve(vc, s.c)
+        
+        orgn.gfx.env:update()
     end
 }
 for i, op in ipairs(ops) do
@@ -29,6 +41,127 @@ for i, op in ipairs(ops) do
     adsr.s[i] = 1
     adsr.r[i] = 0.2
 end
+
+local fps = 30
+orgn.gfx = {
+    env = {
+        graph = {},
+        init = function(s, x, y, w, h, env)
+            env = env or 'asr'
+            for i,_ in ipairs(ops) do
+                if env == 'asr' then
+                    s.env = 'asr'
+                    s.graph[i] = {
+                        sustain = envgraph.new_asr(0, 20, 0, 1),
+                        transient = envgraph.new_ar(0, 20, 0, 1)
+                    }
+                    s.graph[i].sustain:set_position_and_size(x, y, w, h)
+                    s.graph[i].transient:set_position_and_size(x, y, w*2, h)
+                end
+            end
+        end,
+        update = function(s)
+            for i,_ in ipairs(ops) do
+                if s.env == 'asr' then
+                    s.graph[i].sustain:edit_asr(adsr.a[i], adsr.r[i], 1, adsr.c)
+                    s.graph[i].transient:edit_ar(adsr.a[i], adsr.r[i], 1, adsr.c)
+                end
+            end
+        end
+    },
+    osc = {
+        -- graph = {},
+        pos = {},
+        rate = 1,
+        slip = 0.0,
+        slip_max = 0.005,
+        phase = { 0, 0, 0 },
+        --TODO: envelope emulation 
+        lvl = { 1, 1, 1 },
+        -- reslip = function(s)
+        --     s.slip = (math.random()*2 - 1) * s.slip_max
+        -- end,
+        -- reslip_max = function(s)
+        --     s.slip_max = math.random() * 0.00125
+        -- end,
+        init = function(s, ...)
+            local pos = { ... } --pos[op] = { x, y, w, h }
+            s.pos = pos
+        end,
+        draw = function(s)
+            local l = { 0, 0, 0 }
+            local f = {}
+            local idx = {}
+
+            for i,v in ipairs(ops) do
+                idx[i] = {}
+                for ii,vv in ipairs(ops) do
+                    idx[i][ii] = params:get('pm_'..vv..'_'..v)
+                end
+
+                f[i] = function(x) 
+                    local y = math.sin((
+                         x + s.phase[i] 
+                         + l[1]*idx[i][1]
+                         + l[2]*idx[i][2]
+                         + l[3]*idx[i][3]
+                    ) * 2 * math.pi)
+                    l[i] = y
+                    return y
+                end
+            end
+
+            local T = 1 + 1/2
+            local w, h = s.pos[1].w, s.pos[1].h
+            screen.level(15)
+
+            local fpf = fps*2 - 1
+            for iii = 1, fpf do
+                for i,_ in ipairs(ops) do
+                    s.phase[i] = s.phase[i] + (ratio[i] * 1/fps * fpf) % 1
+                end
+
+                for ii = 1,w do
+                    for i,_ in ipairs(ops) do
+                        local left, top = s.pos[i].x, s.pos[i].y
+
+                        local x = ii / w * T
+                        local y = f[i](x)
+                        if iii % fpf == 0 then 
+
+                            local a = math.max(lvl[i], util.explin(0.0001, 1, 0, 1, 
+                                (math.max(idx[1][i], idx[2][i], idx[3][i])/10)^2
+                            ))
+                            screen.pixel(ii + left, (((y * a)+1) * h / 2) + top) 
+                        end
+                    end
+                end
+            end
+            screen.fill()
+        end
+    },
+    samples = {
+        pos = {},
+        init = function(s, ...)
+            s.x, s.y, s.h = ... 
+        end,
+        draw = function(s)
+            screen.level(15)
+            screen.font_size(40)
+            screen.font_face(4)
+            screen.move(s.x, s.y + s.h*2)
+            screen.text('*')
+        end
+    },
+    draw = function(s)
+        for i,_ in ipairs(ops) do
+            --math.max(i-1, 1)
+            s.env.graph[i][mode]:redraw(({2, 4, 15})[i])
+        end
+        s.osc:draw()
+        s.samples:draw()
+    end
+}
 
 local pitch = {
     off = 0,
@@ -62,11 +195,6 @@ local lfo = {
 orgn.init = function()
     lfo:init()
 end
-
-local last = 440
-local glide = 0
-local spread = 0
-local mode = 'sustain'
 
 orgn.noteOn = function(id, hz, vel)
     -- engine.pan(<note id>, math.random()*2*spread - 1)
@@ -143,6 +271,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             for i, op in ipairs(ops) do 
                 local dt =  2^(s.dt * (i-1))
                 r[i] = s[i] * dt
+                ratio[i] = r[i]
             end
             engine.batch('ratio', vc, table.unpack(r))
         end
@@ -153,6 +282,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
             local a = {}
             for i, op in ipairs(ops) do 
                 a[i] = util.dbamp(s.l) * s[i]
+                lvl[i] = a[i]
             end
             engine.batch('amp', vc, table.unpack(a))
         end
@@ -200,16 +330,18 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     params:add_separator('env')
 
     local ds = env == 'adsr'
-    local cstime = cs.new(0.001, 6, 'exp', 0, 0.2, "s")
+    local cstime = cs.new(0.001, 10, 'exp', 0, 0.4, "s")
 
     if envstyle == 'linked' then
 
         -- env mixer
+        -- TODO: fix ramp = -1
         local emx = {
             time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75, 
             update = function(s)
                 for i, op in ipairs(ops) do
-                    local j = i - 2
+                    local j = i - 1
+                    local k = #ops - i
                     local a, r
                     if s.ramp > 0 then
                         r = s.time
@@ -219,11 +351,12 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                         a = s.time
                     end
 
-                    adsr.a[i] = math.max(a * (1 + j*math.abs(s.span)), adsr.min)
-                    adsr.d[i] = math.max(r * (1 + j*s.span), adsr.min)
-                    adsr.s[i] = s.sustain * (1 + j*s.span)
-                    adsr.r[i] = math.max(r * (1 + j*s.span), adsr.min)
+                    adsr.a[i] = math.max(a * (1 + math.abs(k*s.span)), adsr.min)
+                    adsr.d[i] = math.max(r * (1 + k*s.span), adsr.min)
+                    adsr.s[i] = s.sustain
+                    adsr.r[i] = math.max(r * (1 + k*s.span), adsr.min)
                 end
+                adsr.c = s.curve
 
                 adsr:update(ds)
             end
@@ -236,7 +369,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         }
         ctl {
             name = 'ramp',
-            controlspec = cs.def { min = -1, max = 1, default = 1 },
+            controlspec = cs.def { min = -1, max = 1, default = 0 },
             action = function(v) emx.ramp = v; emx:update() end
         }
         if ds then
@@ -257,7 +390,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         ctl {
             name = 'span',
             controlspec = cs.def { min = -1, max = 1, default = 0 },
-            action = function(v) emx.span = v; emx:update() end
+            action = function(v) emx.span = -v; emx:update() end
         }
         ctl {
             name = 'curve',
@@ -307,8 +440,8 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     for i, op in ipairs(ops) do
         ctl {
             name = 'amp ' .. op,
-            controlspec = cs.def { default = 1/(2^(i - 1)) },
-            action = function(v) engine.amp(vc, i, v * util.dbamp(params:get('level'))) end
+            controlspec = cs.def { default = ({ 1, 0.5, 0 })[i] },
+            action = function(v) amp[i] = v; amp:update(i) end
         }
     end
     for i, op in ipairs(ops) do
