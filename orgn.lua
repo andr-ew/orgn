@@ -10,6 +10,9 @@ include 'orgn/lib/nest/norns'
 include 'orgn/lib/nest/grid'
 include 'orgn/lib/nest/txt'
 
+tune, tune_ = include 'orgn/lib/tune/lib/tune' 
+tune.setup { presets = 8, scales = include 'orgn/lib/tune/lib/scales' }
+
 mu = require 'musicutil'
 orgn = include 'orgn/lib/orgn'
 
@@ -157,9 +160,8 @@ local grid128_ = nest_ {
             a = _grid.number { x = { 1, 7 }, y = 3 } :param('ratio_a'),
         },
         mode = _grid.toggle { x = 8, y = 3, lvl = hl } :param('mode'),
-        --TODO: preset
+        --TODO: preset / octave ?
         ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
-
         keyboard = _grid.momentary { x = { 1, 13 }, y = { 4, 8 }, count = 8, action = key },
         scale = _grid.number { x = 14, y = { 4, 8 }, lvl = hl },
         glide = _grid.number {
