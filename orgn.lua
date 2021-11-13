@@ -107,6 +107,8 @@ local kb_lvl = function(s, x, y)
     return tune.is_tonic(params:get('scale_preset'), x, y) and { 4, 15 } or { 0, 15 }
 end
 
+local scale_focus = false
+
 local grid64_ = nest_ {
     play = nest_ {
         scale = _grid.number { x = { 3, 4 }, y = 1 },
@@ -172,7 +174,17 @@ local grid128_ = nest_ {
         keyboard = _grid.momentary { 
             x = { 1, 13 }, y = { 4, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
         },
-        scale = _grid.number { x = 14, y = { 4, 8 }, lvl = hl },
+        scale = _grid.number { 
+            x = 14, y = { 4, 8 }, edge = 'both',
+            lvl = function() return scale_focus and 15 or 8 end,
+            v = function() return params:get('scale_preset') end,
+            action = function(s, v, t, d, add, rem)
+                print(add, rem)
+                params:set('scale_preset', v)
+
+                scale_focus = add ~= nil
+            end
+        },
         glide = _grid.number {
             x = 15, y = { 4, 8 },
             action = function(s, v)
@@ -251,7 +263,7 @@ orgn_ = nest_ {
                     label = function() return map_name[
                         params:get(enc_map_option_id[i][ii])
                     ] end,
-                    step = 0.01
+                    step = 0.001
                 }
             end):merge { enabled = function() return orgn_.norns.tab.value == i end }
         end)

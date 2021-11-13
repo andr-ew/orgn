@@ -309,7 +309,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     }
     ctl {
         name = 'detune',
-        controlspec = cs.def { quant = 0.01/10, step = 0 },
+        controlspec = cs.def { default = 0, quantum = 1/100/10, step = 0 },
         action = function(v)
             ratio.dt = v
             ratio:update()
