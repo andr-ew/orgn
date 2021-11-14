@@ -2,7 +2,7 @@
 
 --globals
 
-local pages = 2 --number of encoder control pages, you can chage this if you want more
+local pages = 3
 
 local hl = { 4, 15 }
 function r() norns.script.load(norns.state.script) end
@@ -57,6 +57,7 @@ local name_map = tab.invert(map_name)
 local enc_defaults = {
     { name_map['time'], name_map['amp b'], name_map['pm c -> b'] },
     { name_map['span'], name_map['detune'], name_map['pm c -> a'] },
+    { name_map['dry/wet'], name_map['samples'], name_map['bits'] },
 }
 local enc_map_option_id = {}
 
@@ -248,11 +249,10 @@ orgn_ = nest_ {
                 end
             },
             tab = _txt.key.option {
-                n = { 2, 3 }, x = 128, y = 62, align = {'right', 'bottom' }, 
+                n = { 2, 3 }, x = { { 118 }, { 122 }, { 126 } }, y = 52, 
+                align = { 'right', 'bottom' },
                 font_size = 16, margin = 3,
-                options = function() 
-                    local t = {}; for i = 1, pages do t[i] = '.' end; return t
-                end
+                options = { '.', '.', '.' },
             },
             page = nest_(pages):each(function(i)
                 return nest_(3):each(function(ii) 
