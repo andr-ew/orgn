@@ -142,15 +142,18 @@ orgn.gfx = {
     },
     samples = {
         pos = {},
+        count = 0,
         init = function(s, ...)
             s.x, s.y, s.h = ... 
         end,
         draw = function(s)
-            screen.level(15)
-            screen.font_size(40)
-            screen.font_face(4)
-            screen.move(s.x, s.y + s.h*2)
-            screen.text('*')
+            local samps, bits = params:get_raw('samples'), params:get_raw('bits')
+
+            screen.level(math.floor(util.explin(0.001, 1, 0.001, 14.9, params:get_raw('dry/wet')^2)))
+            screen.font_size(math.ceil(util.expexp(0.001, 1, 0.001, 40, samps)))
+            screen.font_face(math.floor(7.9 * bits))
+            screen.move(s.x + 10, s.y + 20 + (2 * (1 - (samps/2))))
+            screen.text_center('*')
         end
     },
     draw = function(s)
@@ -309,7 +312,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     }
     ctl {
         name = 'detune',
-        controlspec = cs.def { quant = 0.01/10, step = 0 },
+        controlspec = cs.def { default = 0, quantum = 1/100/10, step = 0 },
         action = function(v)
             ratio.dt = v
             ratio:update()
@@ -427,7 +430,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     
     params:add_separator('lfo')
     ctl {
-        name = 'depth', controlspec = cs.def { quant = 0.01/10 },
+        name = 'depth', controlspec = cs.def { default = 0, quantum = 1/100/10, step = 0 },
         action = function(v) lfo.mul = v end
     }
     ctl {

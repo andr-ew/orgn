@@ -2,7 +2,7 @@
 
 --globals
 
-local pages = 2 --number of encoder control pages, you can chage this if you want more
+local pages = 3
 
 local hl = { 4, 15 }
 function r() norns.script.load(norns.state.script) end
@@ -57,6 +57,7 @@ local name_map = tab.invert(map_name)
 local enc_defaults = {
     { name_map['time'], name_map['amp b'], name_map['pm c -> b'] },
     { name_map['span'], name_map['detune'], name_map['pm c -> a'] },
+    { name_map['dry/wet'], name_map['samples'], name_map['bits'] },
 }
 local enc_map_option_id = {}
 
@@ -88,9 +89,57 @@ m.event = function(data)
     end
 end
 
---grid
-
-g = grid.connect()
+-- local grid64_ = nest_ {
+--     play = nest_ {
+--         scale = _grid.number { x = { 3, 4 }, y = 1 },
+--         ramp = _grid.control { x = { 5, 7 }, y = 1, v = -1 } :param('ramp'),
+--         mode = _grid.toggle { x = 8, y = 1 } :param('mode'),
+--         glide = _grid.number {
+--             x = { 1, 3 }, y = 2,
+--             action = function(s, v)
+--                 params:set('glide', ({ 0, 0.2, 0.4 })[v])
+--             end
+--         },
+--         ratio = _grid.number {
+--             x = { 4, 8 }, y = 2,
+--             action = function(s, v)
+--                 params:set('ratio_c', ({ 2, 4, 7, 8, 10 })[v])
+--             end
+--         },
+--         keyboard = _grid.momentary { 
+--             x = { 1, 8 }, y = { 3, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
+--         }
+--     },
+--     p = _grid.pattern {
+--         x = { 1, 2 }, y = 1,
+--         lvl = {
+--             0, ------------------ 0 empty
+--             function(s, d) ------ 1 empty, recording, no playback
+--                 while true do
+--                     d(15)
+--                     clock.sleep(0.25)
+--                     d(0)
+--                     clock.sleep(0.25)
+--                 end
+--             end,
+--             0, ------------------ 2 filled, paused
+--             15, ----------------- 3 filled, playback
+--             function(s, d) ------ 4 filled, recording, playback
+--                 while true do
+--                     d(15)
+--                     clock.sleep(0.1)
+--                     d(0)
+--                     clock.sleep(0.1)
+--                     d(15)
+--                     clock.sleep(0.1)
+--                     d(0)
+--                     clock.sleep(0.3)
+--                 end
+--             end,
+--         },
+--         target = function(s) return s.p.play end
+--     }
+-- }
 
 local function grid_note(s, v, t, d, add, rem)
     local k = add or rem
@@ -107,83 +156,7 @@ local kb_lvl = function(s, x, y)
     return tune.is_tonic(params:get('scale_preset'), x, y) and { 4, 15 } or { 0, 15 }
 end
 
-local grid64_ = nest_ {
-    play = nest_ {
-        scale = _grid.number { x = { 3, 4 }, y = 1 },
-        ramp = _grid.control { x = { 5, 7 }, y = 1, v = -1 } :param('ramp'),
-        mode = _grid.toggle { x = 8, y = 1 } :param('mode'),
-        glide = _grid.number {
-            x = { 1, 3 }, y = 2,
-            action = function(s, v)
-                params:set('glide', ({ 0, 0.2, 0.4 })[v])
-            end
-        },
-        ratio = _grid.number {
-            x = { 4, 8 }, y = 2,
-            action = function(s, v)
-                params:set('ratio_c', ({ 2, 4, 7, 8, 10 })[v])
-            end
-        },
-        keyboard = _grid.momentary { 
-            x = { 1, 8 }, y = { 3, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
-        }
-    },
-    p = _grid.pattern {
-        x = { 1, 2 }, y = 1,
-        lvl = {
-            0, ------------------ 0 empty
-            function(s, d) ------ 1 empty, recording, no playback
-                while true do
-                    d(15)
-                    clock.sleep(0.25)
-                    d(0)
-                    clock.sleep(0.25)
-                end
-            end,
-            0, ------------------ 2 filled, paused
-            15, ----------------- 3 filled, playback
-            function(s, d) ------ 4 filled, recording, playback
-                while true do
-                    d(15)
-                    clock.sleep(0.1)
-                    d(0)
-                    clock.sleep(0.1)
-                    d(15)
-                    clock.sleep(0.1)
-                    d(0)
-                    clock.sleep(0.3)
-                end
-            end,
-        },
-        target = function(s) return s.p.play end
-    }
-}
-
-local grid128_ = nest_ {
-    play = nest_ {
-        ratio = nest_ {
-            c = _grid.number { x = { 1, 16 }, y = 1 } :param('ratio_c'),
-            b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
-            a = _grid.number { x = { 1, 7 }, y = 3 } :param('ratio_a'),
-        },
-        mode = _grid.toggle { x = 8, y = 3, lvl = hl } :param('mode'),
-        --TODO: preset / octave ?
-        ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
-        keyboard = _grid.momentary { 
-            x = { 1, 13 }, y = { 4, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
-        },
-        scale = _grid.number { x = 14, y = { 4, 8 }, lvl = hl },
-        glide = _grid.number {
-            x = 15, y = { 4, 8 },
-            action = function(s, v)
-                params:set('glide', ({ 0, 0.1, 0.2, 0.4, 1 })[v])
-            end
-        },
-    },
-    pattern = _grid.pattern {
-        x = 16, y = { 4, 8 }, target = function(s) return s.p.play end
-    }
-}
+local scale_focus = false
 
 local mar = { left = 2, top = 4, right = 0, bottom = 1 }
 local gap = 4
@@ -220,43 +193,91 @@ orgn.gfx.samples:init(x.ctl[2] - gap, y.gfx[2] + gap, h.gfx)
 
 --ui
 orgn_ = nest_ {
-    grid = (g.device.cols==8 and grid64_ or grid128_):connect { g = g },
+    -- grid = (g.device.cols==8 and grid64_ or grid128_):connect { g = g },
+    play = nest_ {
+        ratio = nest_ {
+            c = _grid.number { x = { 1, 16 }, y = 1 } :param('ratio_c'),
+            b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
+            a = _grid.number { x = { 1, 4 }, y = 3 } :param('ratio_a'),
+        },
+        mode = _grid.toggle { x = 13, y = 3, lvl = hl } :param('mode'),
+        ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
+        keyboard = _grid.momentary { 
+            x = { 1, 15 }, y = { 4, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
+            enabled = function() return not scale_focus end,
+        },
+    },
+    scale = _grid.number { 
+        y = 3, x = { 5, 8 }, edge = 'both',
+        lvl = function() return scale_focus and { 0, 8 } or hl end,
+        v = function() return params:get('scale_preset') end,
+        clock = true,
+        action = function(s, v, t, d, add, rem)
+            print(add, rem)
+            params:set('scale_preset', v)
+            grid_redraw()
+
+            if add then clock.sleep(0.2) end
+            scale_focus = add ~= nil
+            redraw()
+        end
+    },
+    tune = tune_ {
+        left = 2, top = 4,
+    } :each(function(i, v) 
+        v.enabled = function() return scale_focus and (i == params:get('scale_preset')) end
+    end),
+
+    --TODO: pattern is broke :/
+    pattern = _grid.pattern {
+        x = 16, y = { 4, 8 }, target = function(s) return s.p.play end
+    },
+
     norns = nest_ {
-        gfx = _screen {
-            redraw = function() 
-                orgn.gfx:draw()
-                return true -- return high dirty flag to redraw every frame
-            end
+        focus = _key.momentary {
+            n = 1, 
+            action = function(s, v) 
+                scale_focus = v > 0 
+                redraw(); grid_redraw()
+            end,
         },
-        tab = _txt.key.option {
-            n = { 2, 3 }, x = 128, y = 62, align = {'right', 'bottom' }, 
-            font_size = 16, margin = 3,
-            options = function() 
-                local t = {}; for i = 1, pages do t[i] = '.' end; return t
-            end
-        },
-        page = nest_(pages):each(function(i) 
-            return nest_(3):each(function(ii) 
-                local id = function() return map_id[params:get(
-                    enc_map_option_id[i][ii]
-                )] end
-                local xx = { x.gfx[1], x.gfx[1], x.gfx[2] }
-                local yy = { y.gfx[2] + gap, y.ctl[1], y.ctl[1] }
-                
-                return _txt.enc.control {
-                    n = ii, x = xx[ii], y = yy[ii], flow = 'y',
-                    value = function() return params:get(id()) end,
-                    action = function(s, v) params:set(id(), v) end,
-                    controlspec = function() return params:lookup_param(id()).controlspec end,
-                    label = function() return map_name[
-                        params:get(enc_map_option_id[i][ii])
-                    ] end,
-                    step = 0.01
-                }
-            end):merge { enabled = function() return orgn_.norns.tab.value == i end }
-        end)
-    } :connect { screen = screen, key = key, enc = enc }
-}
+        synth = nest_ {
+            gfx = _screen {
+                redraw = function() 
+                    orgn.gfx:draw()
+                    return true -- return high dirty flag to redraw every frame
+                end
+            },
+            tab = _txt.key.option {
+                n = { 2, 3 }, x = { { 118 }, { 122 }, { 126 } }, y = 52, 
+                align = { 'right', 'bottom' },
+                font_size = 16, margin = 3,
+                options = { '.', '.', '.' },
+            },
+            page = nest_(pages):each(function(i)
+                return nest_(3):each(function(ii) 
+                    local id = function() return map_id[params:get(
+                        enc_map_option_id[i][ii]
+                    )] end
+                    local xx = { x.gfx[1], x.gfx[1], x.gfx[2] }
+                    local yy = { y.gfx[2] + gap, y.ctl[1], y.ctl[1] }
+                    
+                    return _txt.enc.control {
+                        n = ii, x = xx[ii], y = yy[ii], flow = 'y',
+                        value = function() return params:get(id()) end,
+                        action = function(s, v) params:set(id(), v) end,
+                        controlspec = function() return params:lookup_param(id()).controlspec end,
+                        label = function() return map_name[
+                            params:get(enc_map_option_id[i][ii])
+                        ] end,
+                        step = 0.001
+                    }
+                end):merge { enabled = function() return orgn_.norns.synth.tab.value == i end }
+            end),
+            enabled = function() return not scale_focus end,
+        }
+    } 
+} :connect { g = grid.connect(), screen = screen, key = key, enc = enc }
 
 function init()
     orgn.init()
