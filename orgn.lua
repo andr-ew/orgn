@@ -198,17 +198,20 @@ orgn_ = nest_ {
         ratio = nest_ {
             c = _grid.number { x = { 1, 16 }, y = 1 } :param('ratio_c'),
             b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
-            a = _grid.number { x = { 1, 4 }, y = 3 } :param('ratio_a'),
+            a = _grid.number { x = { 1, 5 }, y = 3 } :param('ratio_a'),
         },
         mode = _grid.toggle { x = 13, y = 3, lvl = hl } :param('mode'),
+        voicing = _grid.toggle { x = 12, y = 3, lvl = hl } :param('voicing'),
         ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
         keyboard = _grid.momentary { 
-            x = { 1, 15 }, y = { 4, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
+            x = { 1, 15 }, y = { 4, 8 }, 
+            count = function() return params:get('voicing') == 2 and 1 or 8 end, 
+            action = grid_note, lvl = kb_lvl,
             enabled = function() return not scale_focus end,
         },
     },
     scale = _grid.number { 
-        y = 3, x = { 5, 8 }, edge = 'both',
+        y = 3, x = { 6, 9 }, edge = 'both',
         lvl = function() return scale_focus and { 0, 8 } or hl end,
         v = function() return params:get('scale_preset') end,
         clock = true,

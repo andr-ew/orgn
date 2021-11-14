@@ -15,8 +15,10 @@ local ids = {}
 local vc = 'all'
 local cb = function(id, v) end
 local last = 440
+local last_id = nil
 local glide = 0
 local spread = 0
+local voicing = 'poly'
 local mode = 'sustain'
 local ratio = { 1, 2, 4 }
 local lvl = { 1, 0.5, 0 }
@@ -199,30 +201,39 @@ orgn.init = function()
     lfo:init()
 end
 
+local function hz2st(h) return 12*math.log(h/440, 2) end
+
 orgn.noteOn = function(id, hz, vel)
-    -- engine.pan(<note id>, math.random()*2*spread - 1)
+    i = voicing == 'mono' and 'm' or id
+
+    engine.pan(i, math.random() * spread * (math.random() > 0.5 and -1 or 1))
     
-    local function hz2st(h) return 12*math.log(h/440, 2) end
     local d = hz2st(hz) - hz2st(last)
-    d = util.linexp(0, 76, 0.01, 0.8, math.abs(d))
+    d = util.linexp(0, 76, 0.01, 1.2, math.abs(d))
     local t = glide 
         + (math.random() * 0.2) 
-        + ((d < math.huge) and d or 0)
+        -- + ((d < math.huge) and d or 0)
 
     if mode == 'sustain' and glide <= 0 then
-        engine.noteOn(id, hz, vel)
+        engine.noteOn(i, hz, vel)
     elseif mode == 'sustain' and glide > 0 then
-        engine.noteGlide(id, last, hz, t, vel)
+        engine.noteGlide(i, last, hz, t, vel)
     elseif mode == 'transient' and glide <= 0 then
-        engine.noteTrig(id, hz, vel, math.max(adsr.a[1], 0.01))
+        engine.noteTrig(i, hz, vel, math.max(adsr.a[1], 0.01))
     elseif mode == 'transient' and glide > 0 then
-        engine.noteTrigGlide(id, last, hz, t, vel, adsr.a[1])
+        engine.noteTrigGlide(i, last, hz, t, vel, adsr.a[1])
     end
 
     last = hz
+    last_id = id
 end
+
 orgn.noteOff = function(id)
-    if mode == 'sustain' then
+    if voicing == 'mono' then
+        if id == last_id then
+            engine.noteOff('m')
+        end
+    elseif mode == 'sustain' then
         engine.noteOff(id)
     end
 end
@@ -328,6 +339,15 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         controlspec = cs.new(),
         action = function(v) spread = v end
     }
+    do
+        local vops = { 'poly', 'mono' }
+        ctl {
+            name = 'voicing', type = 'option', options = vops,
+            action = function(v)
+                voicing = vops[v]
+            end
+        }
+    end
 
 
     params:add_separator('env')
