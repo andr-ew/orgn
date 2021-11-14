@@ -1,5 +1,12 @@
 -- a toy keyboard
 
+
+--TODO
+-- octave buttons
+-- fix reverse ramp
+-- pattern map everything
+-- 64 template
+
 --globals
 
 local pages = 3
