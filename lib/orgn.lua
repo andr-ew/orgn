@@ -171,8 +171,9 @@ orgn.gfx = {
 local pitch = {
     off = 0,
     mod = 0,
+    oct = 0,
     update = function(s)
-        engine.pitch(vc, 2^(s.off) + s.mod/2)
+        engine.pitch(vc, (2^(s.off) * (2^s.oct)) + s.mod/2)
     end
 }
 local lfo = { 
@@ -318,6 +319,15 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         },
         action = function(v)
             pitch.off = v
+            pitch:update()
+        end
+    }
+    ctl {
+        name = 'oct',
+        type = 'number',
+        min = -5, max = 5,
+        action = function(v)
+            pitch.oct = v
             pitch:update()
         end
     }

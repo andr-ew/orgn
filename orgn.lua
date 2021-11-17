@@ -1,8 +1,6 @@
 -- a toy keyboard
 
-
 --TODO
--- octave buttons
 -- pattern map everything
 -- 64 template
 
@@ -220,8 +218,14 @@ orgn_ = nest_ {
             b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
             a = _grid.number { x = { 1, 5 }, y = 3 } :param('ratio_a'),
         },
-        mode = _grid.toggle { x = 13, y = 3, lvl = hl } :param('mode'),
+        lower = _grid.trigger { 
+            x = 10, y = 3, action = function() params:delta('oct', -1) end
+        },
+        higher = _grid.trigger { 
+            x = 11, y = 3, action = function() params:delta('oct', 1) end
+        },
         voicing = _grid.toggle { x = 12, y = 3, lvl = hl } :param('voicing'),
+        mode = _grid.toggle { x = 13, y = 3, lvl = hl } :param('mode'),
         ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
         keyboard = _grid.momentary { 
             x = { 1, 15 }, y = { 4, 8 }, 

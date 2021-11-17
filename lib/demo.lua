@@ -86,7 +86,6 @@ function demo.start()
         end
         params:set('demo start/stop', 0)
         redraw()
-        grid_redraw()
     end)
 end
 
