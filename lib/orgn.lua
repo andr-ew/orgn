@@ -272,7 +272,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     env = env  or 'asr'
     envstyle = envstyle or 'linked'
 
-    ids = {}
+    -- ids = {}
     cb = callback or cb
     
     vc = voice
@@ -349,11 +349,20 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         }
     end
 
+    params:add {
+        id = 'reset', type = 'binary', behavior = 'trigger',
+        action = function()
+            for i,id in ipairs(ids) do
+                local p = params:lookup_param(id)
+                params:set(id, p.default or (p.controlspec and p.controlspec.default) or 0)
+            end
+        end
+    }
 
     params:add_separator('env')
 
     local ds = env == 'adsr'
-    local cstime = cs.new(0.001, 10, 'exp', 0, 0.4, "s")
+    local cstime = cs.new(0.001, 10, 'exp', 0, 0.04, "s")
 
     if envstyle == 'linked' then
 
@@ -503,7 +512,7 @@ end
 orgn.params.fx = function(style, callback)
     style = style or 'simple'
     cb = callback or cb
-    ids = {}
+    -- ids = {}
 
     --[[
     [ gate, 0  ]

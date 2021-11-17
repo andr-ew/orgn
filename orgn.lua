@@ -29,6 +29,7 @@ tune.setup { presets = 8, scales = include 'orgn/lib/tune/lib/scales' }
 
 mu = require 'musicutil'
 orgn = include 'orgn/lib/orgn'
+demo = include 'orgn/lib/demo'
 
 engine.name = "Orgn"
 
@@ -37,7 +38,7 @@ engine.name = "Orgn"
 params:add { id = 'none', type = 'control', contolspec = cs.new() }
 params:hide 'none'
 
-orgn.params.synth('all', 'asr', 'linked', function() grid_redraw() end)
+orgn.params.synth('all', 'asr', 'linked', function() end)
 orgn.params.fx('complex')
 
 params:add_separator('tuning')
@@ -83,6 +84,19 @@ for i = 1, pages do
         print(i, ii, id, params:get(id), map_name[params:get(id)])
     end
 end
+
+params:add_separator('')
+params:add {
+    id = 'demo start/stop', type = 'binary', behavior = 'toggle',
+    action = function(v)
+        if v > 0 then 
+            params:delta('reset')
+            demo.start() 
+        else demo.stop() end
+        
+        grid_redraw()
+    end
+}
 
 --midi keyboard
 
@@ -214,7 +228,7 @@ orgn_ = nest_ {
             x = { 1, 15 }, y = { 4, 8 }, 
             count = function() return params:get('voicing') == 2 and 1 or 8 end, 
             action = grid_note, lvl = kb_lvl,
-            enabled = function() return not scale_focus end,
+            enabled = function() return not (scale_focus or demo.playing()) end,
         },
     },
     scale = _grid.number { 
@@ -235,14 +249,18 @@ orgn_ = nest_ {
     tune = tune_ {
         left = 2, top = 4,
     } :each(function(i, v) 
-        v.enabled = function() return scale_focus and (i == params:get('scale_preset')) end
+        v.enabled = function() 
+            return (not demo.playing()) and scale_focus and (i == params:get('scale_preset'))
+        end
     end),
-
-    --TODO: pattern is broke :/
+    demo = _grid.affordance {
+        input = false,
+        redraw = demo.redraw,
+        enabled = demo.playing
+    },
     pattern = _grid.pattern {
         x = 16, y = { 4, 8 }, target = function(s) return s.p.play end
     },
-
     norns = nest_ {
         focus = _key.momentary {
             n = 1, 
@@ -291,7 +309,8 @@ orgn_ = nest_ {
 
 function init()
     orgn.init()
-    -- params:read()
+    params:read()
+    params:set('demo start/stop', 0)
     params:bang()
     orgn_:init()
 end
