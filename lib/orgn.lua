@@ -379,7 +379,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                         r = s.time
                         a = s.time * (1 - s.ramp)
                     else
-                        r = s.time * (1 - s.ramp)
+                        r = s.time * (1 + s.ramp)
                         a = s.time
                     end
 
