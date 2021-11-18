@@ -184,7 +184,7 @@ orgn.gfx.samples:init(x.ctl[2] - gap, y.gfx[2] + gap, h.gfx)
 local g = grid.connect()
 
 local g64 = function()
-    return g.device.cols < 16
+    return g and g.device and g.device.cols < 16 or false
 end
 
 orgn_ = nest_ {
