@@ -1,9 +1,5 @@
 -- a toy keyboard
 
---TODO
--- pattern map everything
--- 64 template
-
 --globals
 
 local pages = 3
@@ -107,57 +103,31 @@ m.event = function(data)
     end
 end
 
--- local grid64_ = nest_ {
---     play = nest_ {
---         scale = _grid.number { x = { 3, 4 }, y = 1 },
---         ramp = _grid.control { x = { 5, 7 }, y = 1, v = -1 } :param('ramp'),
---         mode = _grid.toggle { x = 8, y = 1 } :param('mode'),
---         glide = _grid.number {
---             x = { 1, 3 }, y = 2,
---             action = function(s, v)
---                 params:set('glide', ({ 0, 0.2, 0.4 })[v])
---             end
---         },
---         ratio = _grid.number {
---             x = { 4, 8 }, y = 2,
---             action = function(s, v)
---                 params:set('ratio_c', ({ 2, 4, 7, 8, 10 })[v])
---             end
---         },
---         keyboard = _grid.momentary { 
---             x = { 1, 8 }, y = { 3, 8 }, count = 8, action = grid_note, lvl = kb_lvl,
---         }
---     },
---     p = _grid.pattern {
---         x = { 1, 2 }, y = 1,
---         lvl = {
---             0, ------------------ 0 empty
---             function(s, d) ------ 1 empty, recording, no playback
---                 while true do
---                     d(15)
---                     clock.sleep(0.25)
---                     d(0)
---                     clock.sleep(0.25)
---                 end
---             end,
---             0, ------------------ 2 filled, paused
---             15, ----------------- 3 filled, playback
---             function(s, d) ------ 4 filled, recording, playback
---                 while true do
---                     d(15)
---                     clock.sleep(0.1)
---                     d(0)
---                     clock.sleep(0.1)
---                     d(15)
---                     clock.sleep(0.1)
---                     d(0)
---                     clock.sleep(0.3)
---                 end
---             end,
---         },
---         target = function(s) return s.p.play end
---     }
--- }
+local pattern_lvl_64 = {
+    0, ------------------ 0 empty
+    function(s, d) ------ 1 empty, recording, no playback
+        while true do
+            d(15)
+            clock.sleep(0.25)
+            d(0)
+            clock.sleep(0.25)
+        end
+    end,
+    0, ------------------ 2 filled, paused
+    15, ----------------- 3 filled, playback
+    function(s, d) ------ 4 filled, recording, playback
+        while true do
+            d(15)
+            clock.sleep(0.1)
+            d(0)
+            clock.sleep(0.1)
+            d(15)
+            clock.sleep(0.1)
+            d(0)
+            clock.sleep(0.3)
+        end
+    end,
+}
 
 local function grid_note(s, v, t, d, add, rem)
     local k = add or rem
@@ -209,82 +179,58 @@ orgn.gfx.osc:init(
 )
 orgn.gfx.samples:init(x.ctl[2] - gap, y.gfx[2] + gap, h.gfx)
 
+--local 
+g = grid.connect()
+
+local g64 = function()
+    return g.device.cols < 16
+end
+
 --ui
 orgn_ = nest_ {
     -- grid = (g.device.cols==8 and grid64_ or grid128_):connect { g = g },
     play = nest_ {
-        ratio = nest_ {
-            c = _grid.number { x = { 1, 16 }, y = 1 } :param('ratio_c'),
-            b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
-            a = _grid.number { x = { 1, 5 }, y = 3 } :param('ratio_a'),
-        },
-        lower = _grid.trigger { 
-            x = 10, y = 3, action = function() params:delta('oct', -1) end
-        },
-        higher = _grid.trigger { 
-            x = 11, y = 3, action = function() params:delta('oct', 1) end
-        },
-        voicing = _grid.toggle { x = 12, y = 3, lvl = hl } :param('voicing'),
-        mode = _grid.toggle { x = 13, y = 3, lvl = hl } :param('mode'),
-        ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
-        keyboard = _grid.momentary { 
-            x = { 1, 15 }, y = { 4, 8 }, 
-            count = function() return params:get('voicing') == 2 and 1 or 8 end, 
-            action = grid_note, lvl = kb_lvl,
-            enabled = function() return not (scale_focus or demo.playing()) end,
-        },
-    },
-    scale = _grid.number { 
-        y = 3, x = { 6, 9 }, edge = 'both',
-        lvl = function() return scale_focus and { 0, 8 } or hl end,
-        v = function() return params:get('scale_preset') end,
-        clock = true,
-        action = function(s, v, t, d, add, rem)
-            print(add, rem)
-            params:set('scale_preset', v)
-            grid_redraw()
-
-            if add then clock.sleep(0.2) end
-            scale_focus = add ~= nil
-            redraw()
-        end
-    },
-    tune = tune_ {
-        left = 2, top = 4,
-    } :each(function(i, v) 
-        v.enabled = function() 
-            return (not demo.playing()) and scale_focus and (i == params:get('scale_preset'))
-        end
-    end),
-    demo = _grid.affordance {
-        input = false,
-        redraw = demo.redraw,
-        enabled = demo.playing
-    },
-    pattern = _grid.pattern {
-        x = 16, y = { 4, 8 }, target = function(s) return s.p.play end
-    },
-    norns = nest_ {
-        focus = _key.momentary {
-            n = 1, 
-            action = function(s, v) 
-                scale_focus = v > 0 
-                redraw(); grid_redraw()
-            end,
-        },
-        synth = nest_ {
-            gfx = _screen {
-                redraw = function() 
-                    orgn.gfx:draw()
-                    return true -- return high dirty flag to redraw every frame
-                end
+        grid = g64() and nest_ {
+            ratio = nest_ {
+                c = _grid.number { x = { 1, 8 }, y = 1 } :param('ratio_c'),
             },
-            tab = _txt.key.option {
-                n = { 2, 3 }, x = { { 118 }, { 122 }, { 126 } }, y = 52, 
-                align = { 'right', 'bottom' },
-                font_size = 16, margin = 3,
-                options = { '.', '.', '.' },
+            lower = _grid.trigger { 
+                x = 3, y = 2, action = function() params:delta('oct', -1) end
             },
+            higher = _grid.trigger { 
+                x = 4, y = 2, action = function() params:delta('oct', 1) end
+            },
+            mode = _grid.toggle { x = 5, y = 2, lvl = hl } :param('mode'),
+            ramp = _grid.control { x = { 6, 8 }, y = 2 } :param('ramp'),
+            keyboard = _grid.momentary { 
+                x = { 1, 8 }, y = { 3, 8 }, 
+                count = function() return params:get('voicing') == 2 and 1 or 8 end, 
+                action = grid_note, lvl = kb_lvl,
+                enabled = function() return not (scale_focus or demo.playing()) end,
+            },
+        } or nest_ {
+            ratio = nest_ {
+                c = _grid.number { x = { 1, 16 }, y = 1 } :param('ratio_c'),
+                b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
+                a = _grid.number { x = { 1, 5 }, y = 3 } :param('ratio_a'),
+            },
+            lower = _grid.trigger { 
+                x = 10, y = 3, action = function() params:delta('oct', -1) end
+            },
+            higher = _grid.trigger { 
+                x = 11, y = 3, action = function() params:delta('oct', 1) end
+            },
+            voicing = _grid.toggle { x = 12, y = 3, lvl = hl } :param('voicing'),
+            mode = _grid.toggle { x = 13, y = 3, lvl = hl } :param('mode'),
+            ramp = _grid.control { x = { 14, 16 }, y = 3 } :param('ramp'),
+            keyboard = _grid.momentary { 
+                x = { 1, 15 }, y = { 4, 8 }, 
+                count = function() return params:get('voicing') == 2 and 1 or 8 end, 
+                action = grid_note, lvl = kb_lvl,
+                enabled = function() return not (scale_focus or demo.playing()) end,
+            },
+        },
+        screen = nest_ {
             page = nest_(pages):each(function(i)
                 return nest_(3):each(function(ii) 
                     local id = function() return map_id[params:get(
@@ -303,12 +249,67 @@ orgn_ = nest_ {
                         ] end,
                         step = 0.001
                     }
-                end):merge { enabled = function() return orgn_.norns.synth.tab.value == i end }
+                end):merge { enabled = function() return orgn_.screen.tab.value == i end }
             end),
             enabled = function() return not scale_focus end,
         }
-    } 
-} :connect { g = grid.connect(), screen = screen, key = key, enc = enc }
+    },
+    scale = (not g64()) and _grid.number { 
+        y = 3, x = { 6, 9 }, edge = 'both',
+        lvl = function() return scale_focus and { 0, 8 } or hl end,
+        v = function() return params:get('scale_preset') end,
+        clock = true,
+        action = function(s, v, t, d, add, rem)
+            print(add, rem)
+            params:set('scale_preset', v)
+            grid_redraw()
+
+            if add then clock.sleep(0.2) end
+            scale_focus = add ~= nil
+            redraw()
+        end
+    } or nil,
+    screen = nest_ {
+        gfx = _screen {
+            redraw = function() 
+                orgn.gfx:draw()
+                return true -- return high dirty flag to redraw every frame
+            end
+        },
+        tab = _txt.key.option {
+            n = { 2, 3 }, x = { { 118 }, { 122 }, { 126 } }, y = 52, 
+            align = { 'right', 'bottom' },
+            font_size = 16, margin = 3,
+            options = { '.', '.', '.' },
+        },
+        enabled = function() return not scale_focus end,
+    },
+    tune = tune_ {
+        left = 2, top = 4,
+    } :each(function(i, v) 
+        v.enabled = function() 
+            return (not demo.playing()) and scale_focus and (i == params:get('scale_preset'))
+        end
+    end),
+    demo = _grid.affordance {
+        input = false,
+        redraw = demo.redraw,
+        enabled = demo.playing
+    },
+    pattern = g64() and _grid.pattern {
+        x = { 1, 2 }, y = 2, target = function(s) return s.p.play end,
+        lvl = pattern_lvl_64
+    } or _grid.pattern {
+        x = 16, y = { 4, 8 }, target = function(s) return s.p.play end,
+    },
+    focus = _key.momentary {
+        n = 1, 
+        action = function(s, v) 
+            scale_focus = v > 0 
+            redraw(); grid_redraw()
+        end,
+    },
+} :connect { g = g, screen = screen, key = key, enc = enc }
 
 function init()
     orgn.init()
