@@ -230,7 +230,7 @@ orgn_ = nest_ {
                 enabled = function() return not (scale_focus or demo.playing()) end,
             },
         },
-        screen = nest_ {
+        screen = (not orgn_noscreen) and nest_ {
             page = nest_(pages):each(function(i)
                 return nest_(3):each(function(ii) 
                     local id = function() return map_id[params:get(
@@ -269,7 +269,7 @@ orgn_ = nest_ {
             redraw()
         end
     } or nil,
-    screen = nest_ {
+    screen = (not orgn_noscreen) and nest_ {
         gfx = _screen {
             redraw = function() 
                 orgn.gfx:draw()
