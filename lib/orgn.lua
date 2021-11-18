@@ -15,8 +15,10 @@ local ids = {}
 local vc = 'all'
 local cb = function(id, v) end
 local last = 440
+local last_id = nil
 local glide = 0
 local spread = 0
+local voicing = 'poly'
 local mode = 'sustain'
 local ratio = { 1, 2, 4 }
 local lvl = { 1, 0.5, 0 }
@@ -169,8 +171,9 @@ orgn.gfx = {
 local pitch = {
     off = 0,
     mod = 0,
+    oct = 0,
     update = function(s)
-        engine.pitch(vc, 2^(s.off) + s.mod/2)
+        engine.pitch(vc, (2^(s.off) * (2^s.oct)) + s.mod/2)
     end
 }
 local lfo = { 
@@ -199,30 +202,39 @@ orgn.init = function()
     lfo:init()
 end
 
+local function hz2st(h) return 12*math.log(h/440, 2) end
+
 orgn.noteOn = function(id, hz, vel)
-    -- engine.pan(<note id>, math.random()*2*spread - 1)
+    i = voicing == 'mono' and 'm' or id
+
+    engine.pan(i, math.random() * spread * (math.random() > 0.5 and -1 or 1))
     
-    local function hz2st(h) return 12*math.log(h/440, 2) end
     local d = hz2st(hz) - hz2st(last)
-    d = util.linexp(0, 76, 0.01, 0.8, math.abs(d))
+    d = util.linexp(0, 76, 0.01, 1.2, math.abs(d))
     local t = glide 
         + (math.random() * 0.2) 
-        + ((d < math.huge) and d or 0)
+        -- + ((d < math.huge) and d or 0)
 
     if mode == 'sustain' and glide <= 0 then
-        engine.noteOn(id, hz, vel)
+        engine.noteOn(i, hz, vel)
     elseif mode == 'sustain' and glide > 0 then
-        engine.noteGlide(id, last, hz, t, vel)
+        engine.noteGlide(i, last, hz, t, vel)
     elseif mode == 'transient' and glide <= 0 then
-        engine.noteTrig(id, hz, vel, math.max(adsr.a[1], 0.01))
+        engine.noteTrig(i, hz, vel, math.max(adsr.a[1], 0.01))
     elseif mode == 'transient' and glide > 0 then
-        engine.noteTrigGlide(id, last, hz, t, vel, adsr.a[1])
+        engine.noteTrigGlide(i, last, hz, t, vel, adsr.a[1])
     end
 
     last = hz
+    last_id = id
 end
+
 orgn.noteOff = function(id)
-    if mode == 'sustain' then
+    if voicing == 'mono' then
+        if id == last_id then
+            engine.noteOff('m')
+        end
+    elseif mode == 'sustain' then
         engine.noteOff(id)
     end
 end
@@ -261,7 +273,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     env = env  or 'asr'
     envstyle = envstyle or 'linked'
 
-    ids = {}
+    -- ids = {}
     cb = callback or cb
     
     vc = voice
@@ -311,6 +323,15 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         end
     }
     ctl {
+        name = 'oct',
+        type = 'number',
+        min = -5, max = 5,
+        action = function(v)
+            pitch.oct = v
+            pitch:update()
+        end
+    }
+    ctl {
         name = 'detune',
         controlspec = cs.def { default = 0, quantum = 1/100/10, step = 0 },
         action = function(v)
@@ -328,12 +349,30 @@ orgn.params.synth = function(voice, env, envstyle, callback)
         controlspec = cs.new(),
         action = function(v) spread = v end
     }
+    do
+        local vops = { 'poly', 'mono' }
+        ctl {
+            name = 'voicing', type = 'option', options = vops,
+            action = function(v)
+                voicing = vops[v]
+            end
+        }
+    end
 
+    params:add {
+        id = 'reset', type = 'binary', behavior = 'trigger',
+        action = function()
+            for i,id in ipairs(ids) do
+                local p = params:lookup_param(id)
+                params:set(id, p.default or (p.controlspec and p.controlspec.default) or 0)
+            end
+        end
+    }
 
     params:add_separator('env')
 
     local ds = env == 'adsr'
-    local cstime = cs.new(0.001, 10, 'exp', 0, 0.4, "s")
+    local cstime = cs.new(0.001, 10, 'exp', 0, 0.04, "s")
 
     if envstyle == 'linked' then
 
@@ -350,7 +389,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                         r = s.time
                         a = s.time * (1 - s.ramp)
                     else
-                        r = s.time * (1 - s.ramp)
+                        r = s.time * (1 + s.ramp)
                         a = s.time
                     end
 
@@ -483,7 +522,7 @@ end
 orgn.params.fx = function(style, callback)
     style = style or 'simple'
     cb = callback or cb
-    ids = {}
+    -- ids = {}
 
     --[[
     [ gate, 0  ]
