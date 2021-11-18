@@ -103,6 +103,8 @@ m.event = function(data)
     end
 end
 
+--ui
+
 local pattern_lvl_64 = {
     0, ------------------ 0 empty
     function(s, d) ------ 1 empty, recording, no playback
@@ -179,14 +181,12 @@ orgn.gfx.osc:init(
 )
 orgn.gfx.samples:init(x.ctl[2] - gap, y.gfx[2] + gap, h.gfx)
 
---local 
-g = grid.connect()
+local g = grid.connect()
 
 local g64 = function()
     return g.device.cols < 16
 end
 
---ui
 orgn_ = nest_ {
     -- grid = (g.device.cols==8 and grid64_ or grid128_):connect { g = g },
     play = nest_ {
