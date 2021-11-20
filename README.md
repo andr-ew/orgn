@@ -5,7 +5,7 @@ a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 ### requirements
 
 - norns (210927 or later)
-- grid or midi keyboard
+- grid (any size) or midi keyboard
 - audio input (optional)
 - midi mapping encouraged
 
