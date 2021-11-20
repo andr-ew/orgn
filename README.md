@@ -17,6 +17,8 @@ run `;install https://github.com/andr-ew/orgn` in the maiden repl, then run SYST
 
 ![orgn docs](lib/doc/orgn.png)
 
+hold a scale key or K1 for the scale editor page
+
 (more forthcoming)
 
 # API docs
