@@ -1,7 +1,6 @@
 # orgn
 a 3-operator PM synth with fx. inspired by yamaha portasound keyboards
 
-![orgn docs](lib/doc/orgn.png)
 
 ### requirements
 
@@ -13,3 +12,13 @@ a 3-operator PM synth with fx. inspired by yamaha portasound keyboards
 ### install
 
 run `;install https://github.com/andr-ew/orgn` in the maiden repl, then run SYSTEM > RESTART to boot the new engine
+
+# documentation
+
+![orgn docs](lib/doc/orgn.png)
+
+(more forthcoming)
+
+# API docs
+
+(forthcoming)
