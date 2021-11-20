@@ -1,5 +1,5 @@
 # orgn
-a 3-operator PM synth with fx. inspired by yamaha portasound keyboards
+a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
 
 ### requirements
