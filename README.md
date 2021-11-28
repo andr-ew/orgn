@@ -1,5 +1,3 @@
-# orgn
-
 ![orgn logo](lib/doc/logo-01.png)
 
 a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
