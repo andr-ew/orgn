@@ -1,4 +1,8 @@
 # orgn
+
+![orgn logo](lib/doc/logo-01.png)
+
+
 a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
 
@@ -15,7 +19,7 @@ run `;install https://github.com/andr-ew/orgn` in the maiden repl, then run SYST
 
 # documentation
 
-![orgn docs](lib/doc/orgn.png)
+![orgn grid docs](lib/doc/orgn.png)
 
 hold a scale key or K1 for the scale editor page
 
