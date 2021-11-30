@@ -44,7 +44,7 @@ the default mappings, along with the controls available on the grid, are designe
 
 ### timbre
 
-- **amp [a/b/c]:** the amplitude or volume of the three sine waves in the synth voice
+- **amp [a/b/c]**: the amplitude or volume of the three sine waves in the synth voice
 
   by default, the amplitutes are:
 
@@ -52,7 +52,7 @@ the default mappings, along with the controls available on the grid, are designe
   | - | - | - |
   | 1.0 | 0.5 | 0.0 |
 
-  generally for FM synthesis, any 0 (silent) wave would be considered a modulator wave while any non-zero (audible) wave would be considered a carrier wave. so by default you have two carrier waves (**a** & **b**) and one modulator wave (**c**). we'll expand more on modulator & carrier in the nest bullet point
+  generally for FM synthesis, any 0 (silent) wave would be considered a modulator wave while any non-zero (audible) wave would be considered a carrier wave. so by default you have two carrier waves (**a** & **b**) and one modulator wave (**c**). we'll expand more on modulator & carrier in the next bullet point
   
   if you like, you can also use orgn as a simple addative synthesizer, just by manipulating the levels of these three sines (this gets especially tasty with the **detune** param). there are a suprising variety of organ tones and muted piano sounds to be found this way !
   
@@ -62,11 +62,17 @@ the default mappings, along with the controls available on the grid, are designe
   
   by default on the norns screen, you have access to **pm c -> b** and **pm c -> a**, which routs our single modulator wave to our two carrier waves. 
   
-  in the params menu, you have access to _every_ possible routing between two waves, including feedback. however, it's often more informative & musical to focus on just one or two routings at a time - that way it's always easy to transition between bright tones and pure sine waves
+  in the params menu, you have access to _every_ possible routing between two waves, including feedback. however, it's often more informative & musical to focus on just one or two routings at a time - that way it's always easy to transition between bright tones and pure sine waves.
+  
+  (for the nerds: the term PM is used here rather than FM as phase modulation is actually used under the hood. this is the case for many of the synthesiszers which are labelled as FM synthesiszers.)
+  
+- **ratio [a/b/c]**: the third key parameter in FM syntheis is the pitch or _ratio_ of the 
 
 ### envelope
 
 ### fx
+
+### other
 
 ## tuning
 
