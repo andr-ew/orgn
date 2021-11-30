@@ -66,7 +66,19 @@ the default mappings, along with the controls available on the grid, are designe
   
   (for the nerds: the term PM is used here rather than FM as phase modulation is actually used under the hood. this is the case for many of the synthesiszers which are labelled as FM synthesiszers.)
   
-- **ratio [a/b/c]**: the third key parameter in FM syntheis is the pitch or _ratio_ of the 
+- **ratio [a/b/c]**: the third key parameter in FM syntheis is the pitch or _ratio_ of the sine waves used for synthesis. these can be controlled on the grid or in the params menu. 
+
+  each key on the top 2 rows of the grid (and 1/8 of the third row) represents a whole-number multiple of the pitch being played on the keybaord (also known as the harmonic series). the default ratios are: 
+  
+  | a | b | c |
+  | - | - | - |
+  | 1 | 2 | 4 |
+  
+  this means that the two carriers are heard an octave apart, and the modulator is an octave above carrier **b**, and two octaves above carrier **a**. this is why the two default modulation routings produce different timbres in each carrier.
+  
+  each ratio of modulator to carrier has a unique timbre. simpler ratios (1:2, 1:4, 1:3, 2:3, 1:8) tend to have a more _harmonic_ timbre while complex ratios (3:5, 1:7, 1:15, 13:17) have more _inharmonic_ or bell-like timbres. 
+  
+  play around with silencing carrier **a** (in the params menu) and listening to modulation between **c** & **b** while playing with different ratios on the grid. (you'll probably want to take advantage of the octave keys to keep complex ratios in your pitch range)
 
 ### envelope
 
