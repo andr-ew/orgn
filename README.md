@@ -1,4 +1,10 @@
-![orgn logo](lib/doc/logo-01.png)
+![orgn logo](lib/doc/logo-01.png) 
+
+<p align="center">
+  <img src="https://github.com/andr-ew/orgn/blob/master/lib/doc/screen_cap.gif?raw=true" alt="orgn screen animated gif"/>
+</p>
+<br>
+
 a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
 
@@ -15,7 +21,7 @@ run `;install https://github.com/andr-ew/orgn` in the maiden repl, then run SYST
 
 # documentation
 
-![norns screen gif](lib/doc/screen_cap.gif)
+
 
 ![orgn grid docs](lib/doc/orgn.png)
 
