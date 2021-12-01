@@ -119,12 +119,12 @@ if you'd like some more scales or tuning modes to be available (especially non-w
 ## pattern recording
 
 there are five pattern recorders rightmost on the grid. these can record & loop keyboard gestures, FM ratio changes, envelope settings, and encoder movements. you can also change the scale while a pattern is playing back to add key changes or chord progressions to a loop. each pattern is controlled by a single grid key:
--  single tap
-  -  (blank pattern): begin recording
-  -  (recording pattern): end recording, begin looping
-  -  (playing pattern): play/pause playback
--  double tap: overdub pattern
--  hold: clear pattern
+- single tap
+  - (blank pattern): begin recording
+  - (recording pattern): end recording, begin looping
+  - (playing pattern): play/pause playback
+- double tap: overdub pattern
+- hold: clear pattern
 
 # API docs
 
