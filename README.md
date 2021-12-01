@@ -99,13 +99,22 @@ the default mappings, along with the controls available on the grid, are designe
 
 ## tuning
 
+by default, the keyboard section of the grid will be tuned to c major pentatonic, with an octave between rows. there are quite a few tuning options available however, including just intonnation, arabic maqam, and many options for custom scales. these are organized into 4 scale presets which can be recalled on the grid. hold a scale key or **K1** to enter the tuning screen.
+
+<br>
 <p align="center">
   <img src="https://github.com/andr-ew/orgn/blob/master/lib/doc/tuning_cap.png?raw=true" alt="tuning screen"/>
 </p>
 
-![tuning grid](lib/doc/tune_grid.png) 
+![tuning grid](lib/doc/tune_grid.png)
 
+- **tuning**: this selects the tuning system used - the default is 12-tone equal temperment. other options include maqam (scales with quarter-tones) and variations of just intonnation.
+- **root***: set the root note of the scale. this will always be a 12tet interval starting from 440 hz. you can use the **pitch** param for fine-tuning if needed.
+- **scale**: this selects a scale within the chosen tuning system. scales from `musicutil` are used for 12tet and just intonnation modes, while a few maqam have been transcribed for the maqam mode.
+- **scale degrees**: these keys allow you to remove/narrow down notes from the selected scale. by starting from a chromatic scale, custom scales can be designed
+- **rows**: this sets the interval between rows on the keybaord - switching from octaves to 5ths or 7ths can be a really nice way to mix up your improvisations if things start getting stale.
 
+if you'd like some more scales or tuning modes to be available (especially non-western ones) feel free to let me know ! contributions are welcome.
 
 ## pattern recording
 
