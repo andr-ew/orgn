@@ -42,7 +42,7 @@ the default mappings, along with the controls available on the grid, are designe
 
 ## parameters
 
-### timbre
+### oscillators
 
 - **amp [a/b/c]**: the amplitude or volume of the three sine waves in the synth voice
 
