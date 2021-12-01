@@ -79,12 +79,23 @@ the default mappings, along with the controls available on the grid, are designe
   each ratio of modulator to carrier has a unique timbre. simpler ratios (1:2, 1:4, 1:3, 2:3, 1:8) tend to have a more _harmonic_ timbre while complex ratios (3:5, 1:7, 1:15, 13:17) have more _inharmonic_ or bell-like timbres. 
   
   play around with silencing carrier **a** (in the params menu) and listening to modulation between **c** & **b** while playing with different ratios on the grid. (you'll probably want to take advantage of the octave keys to keep complex ratios in your pitch range)
+  
+- **detune**: one of the key characteristics of digital sounds compared to analog or acoustic ones is that, by default, all waves will be _perfectly_ in tune with each other, wheras in the latter cases there will be slight or extreme imperfecttions in pitch ratios. the **detune** parameter lets you circumvent this in the digital realm - adding slight imperfections between the sine wave pitches can lend an analog feel to FM patches or set up acoustic beating tones between pure sines.
 
 ### envelope
 
+- **time**: the envelope is the volume over time of the three sines. increase the time control to slow down the tranistion from silent to audible. **time** will affect the _attack_ and/or _release_ of the envelope depending on the **ramp** setting
+- **ramp**: ramp (on the grid) affects affects the shape or "direction" of the envelope. at the default 0 position (middle key), the envelope will have both an attack and a release. at the 1 position (right key) the envelope will have a release and fast attack, at the -1 position you'll have a reverse envelope, with a slow attack and fast release
+- **sustain/transient**: when this key is high, the sustain portion of the envelope will be removed - so a keypress will trigger a temporary or transient sound regardless of how long the key is held. this is useful for plucked sounds with a high **ramp** and short **time**
+- **span**: similar to **detune**, span adds some variation in the envelope time across the three sines. this can lend itself to a more natural or acoustic feel, and can also be used to create changes in brightness over time, since you can slow down to attack or release of the modulator compared to the carrier.
+
 ### fx
 
-### other
+- **dry/wet**: dry/wet sets the volume or prominence of the effected signal
+- **samples**: this sets the samplerate of the fx engine, which is sort of like the framerate of a video game. lowering the sample rate leads to distortions and high pitched aliasing tones.
+- **bits**: bits affects the bit depth of the effected signal, kind of like the resolution of your orgn SNES rom. audibly, it's a square-wave like distortion with digital noise tied to the dynamics of the input
+
+  from the params menu you can alter a few more characteristics of the fx engine, but those are all a bit mysterious, and sometimes explosive (!)
 
 ## tuning
 
