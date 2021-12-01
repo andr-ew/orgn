@@ -130,6 +130,12 @@ there are five pattern recorders rightmost on the grid. these can record & loop 
 
 (forthcoming)
 
+there are some neat features of the engine not used in this script which I also haven't fully tested
+- multitimbral support: any command can address all voices or just a single voice at a time
+- full ADSR envelope per-operator: these are parametized as one macro ASR envelope with span on the lua side
+- line envelope per-voice
+- you can probably use it as a drum machine
+
 # thanks to
 
 - rodrigo constanzo
