@@ -100,6 +100,8 @@ the default mappings, along with the controls available on the grid, are designe
 ## tuning
 
 ![tuning screen](lib/doc/tuning_cap.png) 
+![tuning grid](lib/doc/tune_grid.png) 
+
 
 
 ## pattern recording
