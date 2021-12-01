@@ -99,7 +99,7 @@ the default mappings, along with the controls available on the grid, are designe
 
 ## tuning
 
-by default, the keyboard section of the grid will be tuned to c major pentatonic, with an octave between rows. there are quite a few tuning options available however, including just intonnation, arabic maqam, and many options for custom scales. these are organized into 4 scale presets which can be recalled on the grid. hold a scale key or **K1** to enter the tuning screen.
+by default, the keyboard section of the grid will be tuned to C major pentatonic, with an octave between rows. there are quite a few tuning options available however, including just intonnation, arabic maqam, and many options for custom scales. these are organized into 4 scale presets which can be recalled on the grid. hold a scale key or **K1** to enter the tuning screen.
 
 <br>
 <p align="center">
