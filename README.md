@@ -112,7 +112,7 @@ by default, the keyboard section of the grid will be tuned to C major pentatonic
 - **root**: set the root note of the scale. this will always be a 12tet interval starting from 440 hz (black keys in the first row, white keys on the bottom). you can use the **pitch** param for fine-tuning if needed.
 - **scale**: this selects a scale within the chosen tuning system. scales from `musicutil` are used for 12tet and just intonnation modes, while a few maqam have been transcribed for the maqam mode.
 - **scale degrees**: these keys allow you to remove/narrow down notes from the selected scale. by starting from a chromatic scale, custom scales can be designed
-- **rows**: this sets the interval between rows on the keybaord - switching from octaves to 5ths or 7ths can be a really nice way to mix up your improvisations if things start getting stale.
+- **rows**: this sets the interval between rows on the keyboard - switching from octaves to 5ths or 7ths can be a really nice way to mix up your improvisations if things start getting stale.
 
 if you'd like some more scales or tuning modes to be available (especially non-western ones) feel free to let me know ! contributions are welcome.
 
