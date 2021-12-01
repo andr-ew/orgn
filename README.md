@@ -126,6 +126,14 @@ there are five pattern recorders rightmost on the grid. these can record & loop 
 - double tap: overdub pattern
 - hold: clear pattern
 
+# combos
+
+although it can pull its weight as a solo instrument - orgn was originally imagined as a companion to audio looping instruments like [wrms](https://github.com/andr-ew/wrms) or [anachronism](https://github.com/andr-ew/prosody#anachronsim). pure tones & textures facilitate layering while on-grid controls and macro mapping allows one to speedily morph patches for each new layer of a loop. while I personally use two norns for this kind of setup, I'll be maintaining a short list of "combo" scripts that put the orgn engine & grid interface in the background of another norns script utilizing softcut. midi mapping is encouraged in these cases as you'll no longer have access to on-screen encoder controls.
+
+combo scripts may be installed separately via the maiden catalog
+
+- **orgnwrms**: orgn + wrms. connected 128 or 64 grids are mapped to orgn.
+
 # API docs
 
 (forthcoming)
