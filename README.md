@@ -18,7 +18,7 @@ a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
 ### install
 
-run `;install https://github.com/andr-ew/orgn` in the maiden repl, then run SYSTEM > RESTART to boot the new engine
+in maiden, head to the books, refresh community catalog, install orgn, then run SYSTEM > RESTART to boot the new engine
 
 ***POSSIBLE STROBE WARINING*** on the screen graphics for this script. I'll add an option to disable the graphics as soon as I get a chance
 
