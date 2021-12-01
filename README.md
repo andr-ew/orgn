@@ -7,7 +7,7 @@
 
 a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
-### [--video--]()
+### [--video--](https://www.youtube.com/watch?v=Ug39z2mZhsQ)
 
 ### requirements
 
