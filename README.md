@@ -40,7 +40,7 @@ the norns screen has three pages of controls, which can be mapped to anything in
 
 the default mappings, along with the controls available on the grid, are designed to get you up & running quickly with orgn without getting buried in options. once you've gotten familiar with these, you can dive into the params menu, map additional params to external [midi controllers](https://github.com/andr-ew/bleached)/OSC, or edit the screen mappings via PARAMS > EDIT > map > encoders
 
-## key parameters
+## parameters
 
 ### timbre
 
