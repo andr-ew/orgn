@@ -102,6 +102,7 @@ the default mappings, along with the controls available on the grid, are designe
 <p align="center">
   <img src="https://github.com/andr-ew/orgn/blob/master/lib/doc/tuning_cap.png?raw=true" alt="tuning screen"/>
 </p>
+
 ![tuning grid](lib/doc/tune_grid.png) 
 
 
