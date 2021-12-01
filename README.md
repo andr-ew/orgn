@@ -118,6 +118,14 @@ if you'd like some more scales or tuning modes to be available (especially non-w
 
 ## pattern recording
 
+there are five pattern recorders rightmost on the grid. these can record & loop keyboard gestures, FM ratio changes, envelope settings, and encoder movements. you can also change the scale while a pattern is playing back to add key changes or chord progressions to a loop. each pattern is controlled by a single grid key:
+-  single tap
+  -  (blank pattern): begin recording
+  -  (recording pattern): end recording, begin looping
+  -  (playing pattern): play/pause playback
+-  double tap: overdub pattern
+-  hold: clear pattern
+
 # API docs
 
 (forthcoming)
@@ -133,3 +141,15 @@ for various code snippets & jumping off points for the effects engine
 - trent gil
 
 for inspiration on FM & envelope parametization (w/ synth & just friends)
+
+# future maybe
+
+known bugs / issues
+- currently i don't have a polyphony limit implemented -- in transient mode with longer envelopes it can be pretty easy to blow up the engine
+- there are some performance issues, sadly. this can be noticeable when playing quickly, uhh, sometimes? restarting the script always seems to get things back to normal. optimization is a weak spot for me so it's going to take me time to sort this out.
+- still not really happy with the fine tuning on span, oh well
+
+roadmap
+- encoder quick mapping
+- global PM scaler
+- arc support
