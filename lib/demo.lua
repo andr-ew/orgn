@@ -59,6 +59,7 @@ end
 local loop
 
 function demo.start()
+    params:set('clock_tempo', 120)
     loop = clock.run(function()
         for i = 1,count do
             do
