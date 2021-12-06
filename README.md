@@ -164,6 +164,7 @@ known bugs / issues
 - still not really happy with the fine tuning on span, oh well
 
 roadmap
+- option to disable screen graphics
 - encoder quick mapping
 - global PM scaler
 - arc support
