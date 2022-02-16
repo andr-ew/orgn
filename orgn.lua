@@ -92,9 +92,28 @@ params:add {
 }
 
 --midi keyboard
+midi_device = {} -- container for connected midi devices
+midi_device_names = {}
+midi_target = 1
 
-m = midi.connect()
-m.event = function(data)
+function init_midi()
+  for i = 1,#midi.vports do -- query all ports
+    midi_device[i] = midi.connect(i) -- connect each device
+    local full_name = 
+    table.insert(midi_device_names,"port "..i..": "..util.trim_string_to_width(midi_device[i].name,40)) -- register its name
+  end
+  params:add_option("midi target", "midi target",midi_device_names,1)
+  params:set_action("midi target", midi_target_fn)
+end
+
+function midi_target_fn(x)
+  midi_device[midi_target].event = nil
+  midi_target = x
+  midi_device[midi_target].event = process_midi
+end
+
+
+function process_midi(data)
     local msg = midi.to_msg(data)
 
     if msg.type == "note_on" then
@@ -314,6 +333,7 @@ orgn_ = nest_ {
 
 function init()
     orgn.init()
+    init_midi()
     params:read()
     params:set('demo start/stop', 0)
     params:bang()
