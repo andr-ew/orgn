@@ -194,7 +194,7 @@ orgn_ = nest_ {
         grid = g64() and nest_ {
             ratio = nest_ {
                 c = _grid.number { x = { 1, 8 }, y = 1 } :param('ratio_c'),
-                b = _grid.number { x = { 1, 16 }, y = 2 } :param('ratio_b'),
+                b = _grid.number { x = { 1, 2 }, y = 2 } :param('ratio_b'),
             },
             lower = _grid.trigger { 
                 x = 3, y = 2, action = function() params:delta('oct', -1) end

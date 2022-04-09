@@ -315,7 +315,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     ctl {
         name = 'pitch',
         controlspec = cs.def {
-            min = -1, max = 1
+            min = -1, max = 1, default = 0.04
         },
         action = function(v)
             pitch.off = v
