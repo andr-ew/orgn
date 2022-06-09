@@ -25,13 +25,13 @@ Engine_Orgn : CroneEngine {
         var batchformat = '';
 
         //contols not to map to control busses (i.e. these are either unique for each voice or constants)
-        var doNotMap = [\gate, \hz, \outbus, \pan];
+        var doNotMap = [\gate, \glideGate, \hz, \outbus, \pan, \velocity];
 
         //fm synth synthdef - number of operators is set by ops
         polyDef = SynthDef.new(\fm, {
 
             //named controls (inputs) - many are multichannel (channel per operator).
-            var gate = \gate.kr(1), pan = \pan.kr(0), hz = \hz.kr([440, 440, 0]),
+            var gate = \gate.kr(1), glideGate = \glideGate.kr(1), pan = \pan.kr(0), hz = \hz.kr([440, 440, 0]),
             amp = \amp.kr(Array.fill(ops, { arg i; 1/(2.pow(i)) })), vel = \velocity.kr(1),
             ratio = \ratio.kr(Array.fill(ops, { arg i; (2.pow(i)) })),
             mod = Array.fill(ops, { arg i; NamedControl.kr(\mod ++ i, 0!ops) }),
@@ -40,8 +40,10 @@ Engine_Orgn : CroneEngine {
             done = \done.kr(1!ops); // done needs to be set based on release times (longest relsease channel gets a 1)
 
             //hz envelope (for glides)
-            //var frq = XLine.kr(hz[0], hz[1], hz[2], doneAction:0) * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
-            var frq = hz[1] * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
+            var start = hz[0], end = hz[1], dur = hz[2];
+            var glide = EnvGen.kr(Env.pairs([[0, start], [dur, end]], \exp), glideGate, doneAction: 0);
+            var frq = glide * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
+            //var frq = hz[1] * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
 
             //the synth sound (3 lines!!!)
         	var env = EnvGen.kr(Env.adsr(a, d, s, r, 1, curve), gate, doneAction: (done * 2)); //adsr envelopes
@@ -157,15 +159,42 @@ Engine_Orgn : CroneEngine {
 		//--- voice control, all are indexed by arbitarry ID number
 		// (voice allocation should be performed by caller)
 
-		// start a new voice
-		this.addCommand(\start, "if", { arg msg;
-			this.addVoice(msg[1], msg[2]);
+		// start a new voice. args: id, hz, velocity, pan
+		this.addCommand(\noteOn, "ifff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[2], dur = 0, vel = msg[3], pan = msg[4];
+            this.addVoice(id, [start, end, dur], vel, pan);
 		});
 
-		// stop a voice
-		this.addCommand(\stop, "i", { arg msg;
+        // start a new voice w/ a glide envelope. args: id, start hz, end hz, glide duration, velocity, pan
+		this.addCommand(\noteGlide, "ifffff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], pan = msg[6];
+            this.addVoice(id, [start, end, dur], vel, pan);
+		});
+
+		// stop a voice. args: id
+		this.addCommand(\noteOff, "i", { arg msg;
 			this.removeVoice(msg[1]);
 		});
+
+        // start a new voice + release after specified duration. args: id, hz, velocity, pan, duration
+        this.addCommand(\noteTrig, "iffff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[2], dur = 0, vel = msg[3], pan = msg[4], delay = msg[5];
+            Routine {
+                this.addVoice(id, [start, end, dur], vel, pan);
+                delay.max(0.01).yield;
+                this.removeVoice(id);
+            }.play
+        });
+
+        // start a new voice + release after specified duration w/ glide envelope. args: id, start hz, end hz, glide duration, velocity, pan, duration
+        this.addCommand(\noteTrigGlide, "iffffff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], pan = msg[6], delay = msg[7];
+            Routine {
+                this.addVoice(id, [start, end, dur], vel, pan);
+                delay.max(0.01).yield;
+                this.removeVoice(id);
+            }.play
+        });
 
 		// free all synths
 		this.addCommand(\stopAll, "", {
@@ -235,13 +264,20 @@ Engine_Orgn : CroneEngine {
 	}
 
     //start a new voice at an id
-	addVoice { arg id, hz;
-        var params = List.with(\outbus, fxBus, \hz, [0, hz, 0]);
+	addVoice { arg id, hz, vel, pan;
+        var params = List.with(\outbus, fxBus, \hz, hz, \velocity, vel, \pan, pan);
 		var numVoices = voices.size;
 
 		if(voices[id].notNil, {
-			voices[id].set(\gate, 1);
-			voices[id].set(\hz, [0, hz, 0]);
+            //behavior: retrigger glide envelope, don't retrigger operator envelopes
+            Routine {
+                voices[id].set(\gate, 1);
+                voices[id].set(\hz, hz);
+                voices[id].set(\glideGate, -1);
+                context.server.sync;
+
+                voices[id].set(\glideGate, 1);
+            }.play
 		}, {
 			if(numVoices < maxNumVoices, {
 				ctlBus.keys.do({ arg name;
