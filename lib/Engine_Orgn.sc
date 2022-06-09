@@ -27,8 +27,6 @@ Engine_Orgn : CroneEngine {
         //contols not to map to control busses (i.e. these are either unique for each voice or constants)
         var doNotMap = [\gate, \hz, \outbus, \pan];
 
-
-
         //fm synth synthdef - number of operators is set by ops
         polyDef = SynthDef.new(\fm, {
 
@@ -54,6 +52,7 @@ Engine_Orgn : CroneEngine {
             Out.ar(\outbus.kr(0), Pan2.ar(Mix.ar((osc / ops) * amp * vel * 0.15), pan));
         }).add;
 
+        //group for voices
         gr = ParGroup.new(context.xg);
 
         //analog waveshaper table by @ganders
@@ -64,7 +63,6 @@ Engine_Orgn : CroneEngine {
                     {rrand(0,2pi)}!9
                 )/10;
         )).normalize;
-
         tfBuf = Buffer.loadCollection(context.server, tf.asWavetableNoWrap);
 
         context.server.sync;
@@ -129,7 +127,10 @@ Engine_Orgn : CroneEngine {
 
         context.server.sync;
 
+        //create voices dict
 		voices = Dictionary.new;
+
+        //create / initialize control busses
 		ctlBus = Dictionary.new;
 		polyDef.allControlNames.do({ arg ctl;
 			var name = ctl.name, value = ctl.defaultValue;
@@ -204,9 +205,7 @@ Engine_Orgn : CroneEngine {
             this.updateDone();
         });
 
-        ops.do({
-            batchformat = batchformat ++ \f;
-        });
+        ops.do({ batchformat = batchformat ++ \f; });
 
         //set a control for all operators in one go
         this.addCommand(\batch, \s ++ batchformat, { arg msg;
@@ -235,6 +234,7 @@ Engine_Orgn : CroneEngine {
         });
 	}
 
+    //start a new voice at an id
 	addVoice { arg id, hz;
         var params = List.with(\outbus, fxBus, \hz, [0, hz, 0]);
 		var numVoices = voices.size;
@@ -262,10 +262,12 @@ Engine_Orgn : CroneEngine {
 		});
 	}
 
+    //remove voice at id
 	removeVoice { arg id;
         voices[id].set(\gate, 0);
 	}
 
+    //update which envelope frees the voice (the longest one)
     updateDone {
         var rel = ctlBus[\release].getnSynchronous(ctlBus[\release].numChannels);
         var done = 0!(rel.size);
