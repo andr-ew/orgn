@@ -207,10 +207,22 @@ Engine_Orgn : CroneEngine {
             var l = c.numChannels, name = c.name;
             if((doNotMap ++ [\mod0, \mod1, \mod2, \done, \release]).indexOf(name).isNil, {
                 arg f = \,
-                cb = if(l > 1,
-                    { f = f ++ \i; { arg msg; msg.removeAt(0); ctlBus[name].setAt(*msg) } },
-                    { { arg msg; msg.removeAt(0); ctlBus[name].setSynchronous(*msg) } }
-                );
+                cb = if(l > 1, {
+                    f = f ++ \i;
+                    { arg msg;
+                        var idx = msg[2];
+                        msg.removeAt(0);
+                        msg.removeAt(0);
+
+                        ctlBus[name].setAt(idx - 1, *msg)
+                    }
+                },
+                {
+                    { arg msg;
+                        msg.removeAt(0);
+                        ctlBus[name].setSynchronous(*msg)
+                    }
+                });
 
                 //l.do({ f = f ++ \f; });
                 f = f ++ \f;
@@ -222,15 +234,14 @@ Engine_Orgn : CroneEngine {
         this.addCommand(\mod, \iif, { arg msg;
             var modulator = msg[2], carrier = msg[1], amt = msg[3];
 
-            [(\mod ++ (carrier - 1)).asSymbol, modulator, amt].postln;
-            ctlBus[(\mod ++ (carrier - 1)).asSymbol].setAt(modulator, amt);
+            ctlBus[(\mod ++ (carrier - 1)).asSymbol].setAt(modulator - 1, amt);
         });
 
         //the release command must manually set the doneAction for each operator via \done
         this.addCommand(\release, \if, { arg msg;
-            var n = msg[1], amt = msg[2];
+            var idx = msg[1], amt = msg[2];
 
-            ctlBus[\release].setAt(n, amt);
+            ctlBus[\release].setAt(idx - 1, amt);
             this.updateDone();
         });
 
