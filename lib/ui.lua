@@ -69,6 +69,7 @@ function App.grid(args)
             }
         end)
     }
+    --FIXME: toggles not mapping correctly to option param
     local _voicing = wide and to.pattern(mpat, 'voicing', Grid.toggle, function()
         return {
             x = 12, y = 3, lvl = hl,
@@ -230,6 +231,8 @@ function App.norns(args)
 
     local tab = 1
     local _tab = Text.key.option()
+
+    --TODO: alt key
 
     return function(props)
         _gfx()
