@@ -1,102 +1,96 @@
--- a toy keyboard
+--  ===== ===== ===== =   =
+--  =   = =   = =     ==  =
+--  =   = ====  =  == = = =
+--  =   = =  =  =   = =  ==
+--  ===== =   = ===== =   =
+--
+-- a 3-operator FM synth with 
+-- fx. inspired by yamaha 
+-- portasound keyboards
+--
+-- version 1.1 @andrew
+-- https://norns.community/
+-- authors/andrew/orgn
+--
+-- K1-K2: page focus
+-- E1-E3: various
+--
+-- required: midi keyboard
+-- or grid
+--
+-- grid documentation available
+-- on norns.community
 
---globals
+--global variables
 
-local pages = 3
+pages = 3 --you can add more pages here for the norns encoders
 
---includes
+--adjust these variables for midigrid / nonvari grids
+g = grid.connect()
+grid_width = (g and g.device and g.device.cols >= 16) and 16 or 8
+varibright = (g and g.device and g.device.cols >= 16) and true or false
+
+--external libs
 
 tab = require 'tabutil'
 cs = require 'controlspec'
-
-tune, Tune = include 'lib/tune/tune' 
-tune.setup { presets = 8, scales = include 'lib/tune/scales' }
-
 mu = require 'musicutil'
-orgn = include 'lib/orgn'
-demo = include 'lib/demo'
+pattern_time = require 'pattern_time'
+
+--git submodule libs
+
+nest = include 'lib/nest/core'
+Key, Enc = include 'lib/nest/norns'
+Text = include 'lib/nest/text'
+Grid = include 'lib/nest/grid'
+
+multipattern = include 'lib/nest/util/pattern-tools/multipattern'
+of = include 'lib/nest/util/of'
+to = include 'lib/nest/util/to'
+PatternRecorder = include 'lib/nest/examples/grid/pattern_recorder'
+
+tune, Tune = include 'orgn/lib/tune/tune' 
+tune.setup { presets = 8, scales = include 'orgn/lib/tune/scales' }
+
+--script lib files
+
+orgn, orgn_gfx = include 'orgn/lib/orgn'      --engine params & graphics
+demo = include 'orgn/lib/demo'                --egg
+Orgn = include 'orgn/lib/ui'                  --nest UI components (norns screen / grid)
+map = include 'orgn/lib/params'               --create script params
+m = include 'orgn/lib/midi'                   --midi keyboard input
 
 engine.name = "Orgn"
 
---add params
+--set up global patterns
 
-params:add { id = 'none', type = 'control', contolspec = cs.new() }
-params:hide 'none'
-
-orgn.params()
-
-params:add_separator('tuning')
-params:add {
-    type='number', name='scale preset', id='scale_preset', min = 1, max = 8,
-    default = 1, action = function() redraw() end
-}
-
-params:add_separator('map')
-
-local map_name = {}
-local map_id = {}
-
-for k,v in pairs(params.params) do --read all params == lazy way
-    if v.t == 3 then -- type is control
-        table.insert(map_name, v.name or v.id)
-        table.insert(map_id, v.id)
+function pattern_time:resume()
+    if self.count > 0 then
+        self.prev_time = util.time()
+        self.process(self.event[self.step])
+        self.play = 1
+        self.metro.time = self.time[self.step] * self.time_factor
+        self.metro:start()
     end
 end
 
-local name_map = tab.invert(map_name)
--- local id_map = tab.invert(map_id)
-
-local enc_defaults = {
-    { name_map['time'], name_map['amp b'], name_map['pm c -> b'] },
-    { name_map['span'], name_map['detune'], name_map['pm c -> a'] },
-    { name_map['dry/wet'], name_map['samples'], name_map['bits'] },
-}
-local enc_map_option_id = {}
-
-params:add_group('encoders', pages * 3)
-for i = 1, pages do
-    enc_map_option_id[i] = {}
-    enc_defaults[i] = enc_defaults[i] or {}
-    for ii = 1,3 do
-        local name = 'page '..i..', E'..ii..''
-        local id = string.gsub(string.gsub(name, ' ', '_'), ',', '')
-        enc_map_option_id[i][ii] = id
-        params:add {
-            id = id, name = name, type = 'option',
-            options = map_name, default = enc_defaults[i][ii] or name_map['none'],
-        }        
-        print(i, ii, id, params:get(id), map_name[params:get(id)])
-    end
+pattern, mpat = {}, {}
+for i = 1,5 do
+    pattern[i] = pattern_time.new() 
+    mpat[i] = multipattern.new(pattern[i])
 end
 
-params:add_separator('')
-params:add {
-    id = 'demo start/stop', type = 'binary', behavior = 'toggle',
-    action = function(v)
-        if v > 0 then 
-            params:delta('reset')
-            demo.start() 
-        else demo.stop() end
-        
-        --grid_redraw()
-    end
+--set up nest v2 UI
+
+local _app = {
+    grid = Orgn.grid{ wide = grid_width > 8, varibright = varibright },
+    norns = Orgn.norns(),
 }
 
---midi keyboard
-
-m = midi.connect()
-m.event = function(data)
-    local msg = midi.to_msg(data)
-
-    if msg.type == "note_on" then
-        --TODO: velocity range params
-        orgn.noteOn(msg.note, mu.note_num_to_freq(msg.note), ((msg.vel or 127)/127)*0.2 + 0.85)
-    elseif msg.type == "note_off" then
-        orgn.noteOff(msg.note)
-    end
-end
-
---ui
+nest.connect_grid(_app.grid, grid.connect(), 60)
+nest.connect_enc(_app.norns)
+nest.connect_key(_app.norns)
+nest.connect_screen(_app.norns, 24)
 
 --init/cleanup
 
@@ -104,6 +98,7 @@ function init()
     orgn.init()
     --params:read()
     params:set('demo start/stop', 0)
+    --TODO: reset crinkle (or whatever it is that crashes shit) (?)
     params:bang()
 end
 

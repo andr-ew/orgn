@@ -16,6 +16,8 @@ local mode = 'sustain'
 local ratio = { 1, 2, 4 }
 local lvl = { 1, 0.5, 0 }
 
+local gfx
+
 -- adsr mixer object
 local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
     update = function(s, ds)
@@ -27,7 +29,7 @@ local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
         engine.batch('release', table.unpack(s.r))
         engine.curve(s.c)
         
-        orgn.gfx.env:update()
+        gfx.env:update()
     end
 }
 for i, op in ipairs(ops) do
@@ -38,7 +40,7 @@ for i, op in ipairs(ops) do
 end
 
 local fps = 30
-orgn.gfx = {
+gfx = {
     env = {
         graph = {},
         init = function(s, x, y, w, h, env)
@@ -551,4 +553,4 @@ end
 
 orgn.adsr = adsr
 
-return orgn
+return orgn, gfx
