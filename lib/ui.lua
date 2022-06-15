@@ -232,20 +232,35 @@ function App.norns(args)
     local tab = 1
     local _tab = Text.key.option()
 
-    --TODO: alt key
+    local _alt = Key.momentary()
+    
+    local _scale_degrees = Tune.norns.scale_degrees()
+    local _options = Tune.norns.options()
 
     return function(props)
-        _gfx()
-
-        _tab{
-            n = { 2, 3 }, x = { { 118 }, { 122 }, { 126 } }, y = 52,
-            align = { 'right', 'bottom' },
-            font_size = 16, margin = 3,
-            options = { '.', '.', '.' },
-            state = { tab, function(v) tab = v end }
+        _alt{
+            n = 1, 
+            action = function(v) 
+                scale_focus = v > 0
+                nest.grid.make_dirty()
+                nest.screen.make_dirty()
+            end
         }
 
-        _pages[tab]()
+        if scale_focus then
+            _scale_degrees{ preset = params:get('scale_preset') }
+            _options{ preset = params:get('scale_preset') }
+        else
+            _gfx()
+            _tab{
+                n = { 2, 3 }, x = { { 118 }, { 122 }, { 126 } }, y = 52,
+                align = { 'right', 'bottom' },
+                font_size = 16, margin = 3,
+                options = { '.', '.', '.' },
+                state = { tab, function(v) tab = v end }
+            }
+            _pages[tab]()
+        end
     end
 end
 
