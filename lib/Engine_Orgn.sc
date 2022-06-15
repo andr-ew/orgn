@@ -26,19 +26,20 @@ Engine_Orgn : CroneEngine {
         var batchformat = '';
 
         //contols not to map to control busses (i.e. these are either unique for each voice or constants)
-        var doNotMap = [\gate, \glideGate, \hz, \outbus, \pan, \velocity];
+        var doNotMap = [\gate, \glideGate, \killGate, \hz, \outbus, \pan, \velocity];
 
         //fm synth synthdef - number of operators is set by ops
         polyDef = SynthDef.new(\fm, {
 
             //named controls (inputs) - many are multichannel (channel per operator).
-            var gate = \gate.kr(1), glideGate = \glideGate.kr(1), pan = \pan.kr(0), hz = \hz.kr([440, 440, 0]),
+            var gate = \gate.kr(1), glideGate = \glideGate.kr(1), killGate =  \killGate.kr(1),
+            pan = \pan.kr(0), hz = \hz.kr([440, 440, 0]),
             amp = \amp.kr(Array.fill(ops, { arg i; 1/(2.pow(i)) })), vel = \velocity.kr(1),
             ratio = \ratio.kr(Array.fill(ops, { arg i; (2.pow(i)) })),
             mod = Array.fill(ops, { arg i; NamedControl.kr(\mod ++ i, 0!ops) }),
         	a = \attack.kr(0.001!ops), d = \decay.kr(0!ops), s = \sustain.kr(1!ops),
             r = \release.kr(0.2!ops), curve = \curve.kr(-4),
-            done = \done.kr(1!ops); // done needs to be set based on release times (longest relsease channel gets a 1)
+            done = \done.kr(1!ops); // done needs to be set manually based on release times
 
             //hz envelope (for glides)
             var start = hz[0], end = hz[1], dur = hz[2];
@@ -46,13 +47,18 @@ Engine_Orgn : CroneEngine {
             var frq = glide * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
             //var frq = hz[1] * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
 
+            //kill env for voice stealong
+			var killEnvelope = EnvGen.kr(
+                envelope: Env.asr( 0, 1, 0.01), gate: killGate + Impulse.kr(0), doneAction: Done.freeSelf
+            );
+
             //the synth sound (3 lines!!!)
         	var env = EnvGen.kr(Env.adsr(a, d, s, r, 1, curve), gate, doneAction: (done * 2)); //adsr envelopes
         	var osc = SinOsc.ar(frq * ratio, Mix.ar(LocalIn.ar(ops) * mod)) * env; //oscs from the last cycle phase modulate current cycle
         	LocalOut.ar(osc); //send oscs to the nest cycle
 
         	//pan/amp/output
-            Out.ar(\outbus.kr(0), Pan2.ar(Mix.ar((osc / ops) * amp * vel * 0.15), pan));
+            Out.ar(\outbus.kr(0), Pan2.ar(Mix.ar((osc / ops) * amp * vel * 0.15 * killEnvelope), pan));
         }).add;
 
         //group for voices
@@ -131,7 +137,7 @@ Engine_Orgn : CroneEngine {
         context.server.sync;
 
         //create voices dict
-		voices = Dictionary.new;
+		voices = List.new;
 
         //create / initialize control busses
 		ctlBus = Dictionary.new;
@@ -278,42 +284,51 @@ Engine_Orgn : CroneEngine {
     //start a new voice at an id
 	addVoice { arg id, hz, vel, pan;
         var params = List.with(\outbus, fxBus, \hz, hz, \velocity, vel, \pan, pan);
-		var numVoices = voices.size;
 
-		if(voices[id].notNil, {
+        var voiceAtId = voices.detect{arg v; v.id == id};
+
+		if(voiceAtId.notNil, {
             //behavior: retrigger glide envelope, don't retrigger operator envelopes
             Routine {
-                voices[id].set(\gate, 1);
-                voices[id].set(\hz, hz);
-                voices[id].set(\glideGate, -1);
+                voiceAtId['synth'].set(\gate, 1);
+                voiceAtId['synth'].set(\hz, hz);
+                voiceAtId['synth'].set(\glideGate, -1);
                 context.server.sync;
 
-                voices[id].set(\glideGate, 1);
+                voiceAtId['synth'].set(\glideGate, 1);
             }.play
 		}, {
-			if(numVoices < maxNumVoices, {
-				ctlBus.keys.do({ arg name;
-					params.add(name);
-                    params.add(ctlBus[name].getnSynchronous(ctlBus[name].numChannels));
-				});
+            var synth, voice;
 
-                voices.add(id -> Synth.new(\fm, params, gr));
-				NodeWatcher.register(voices[id]);
-				voices[id].onFree({
-					voices.removeAt(id);
-				});
+            //kill last voice if hitting limit
+			if(voices.size >= maxNumVoices, {
+                voices.last['synth'].set(\killGate, 0);
+                ('kill voice ' ++ voices.last['id']).postln;
+            });
 
-                ctlBus.keys.do({ arg name;
-                    voices[id].map(name, ctlBus[name]);
-                });
-			});
+            ctlBus.keys.do({ arg name;
+                params.add(name);
+                params.add(ctlBus[name].getnSynchronous(ctlBus[name].numChannels));
+            });
+
+            synth = Synth.new(\fm, params, gr);
+            voice = (id: id, synth: synth);
+            voices.addFirst(voice);
+
+            NodeWatcher.register(synth);
+            synth.onFree({ voices.remove(voice); });
+
+            ctlBus.keys.do({ arg name;
+                synth.map(name, ctlBus[name]);
+            });
 		});
 	}
 
     //remove voice at id
 	removeVoice { arg id;
-        voices[id].set(\gate, 0);
-	}
+        var voice = voices.detect{arg v; v.id == id};
+        if(voice.notNil, { voice['synth'].set(\gate, 0); });
+    }
 
     //update which envelope frees the voice (the longest one)
     updateDone {
