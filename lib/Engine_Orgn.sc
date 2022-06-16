@@ -7,7 +7,6 @@ Engine_Orgn : CroneEngine {
     var <fxBus;
     var <fx;
 
-    //TODO: raise polyphony and/or impliment voice stealing
 	var <maxNumVoices = 16;
 
     var <ops = 3;

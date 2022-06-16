@@ -96,9 +96,8 @@ nest.connect_screen(_app.norns, 24)
 
 function init()
     orgn.init()
-    --params:read()
+    params:read()
     params:set('demo start/stop', 0)
-    --TODO: reset crinkle (or whatever it is that crashes shit) (?)
     params:bang()
 end
 

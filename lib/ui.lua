@@ -69,17 +69,16 @@ function App.grid(args)
             }
         end)
     }
-    --FIXME: toggles not mapping correctly to option param
     local _voicing = wide and to.pattern(mpat, 'voicing', Grid.toggle, function()
         return {
             x = 12, y = 3, lvl = hl,
-            state = of.param('voicing')
+            state = of.param('voicing', 1)
         }
     end)
     local _mode = to.pattern(mpat, 'mode', Grid.toggle, function()
         return {
             x = wide and 13 or 5, y = wide and 3 or 2, lvl = hl,
-            state = of.param('mode'),
+            state = of.param('mode', 1),
         }
     end)
     local _ramp = to.pattern(mpat, 'ramp', Grid.control, function()

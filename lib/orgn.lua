@@ -347,7 +347,6 @@ orgn.params = function(env, envstyle, fxstyle)
     if envstyle == 'linked' then
 
         -- env mixer
-        -- TODO: fix ramp = -1
         local emx = {
             time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75, 
             update = function(s)
@@ -532,8 +531,8 @@ orgn.params = function(env, envstyle, fxstyle)
             action = function(v) engine.crackle(v) end
         }
         ctl {
-            name = 'crinkle (!)',
-            controlspec = cs.def { min = -4, max = 1.12, default = 0, 1/5.12/100 },
+            name = 'crinkle',
+            controlspec = cs.def { min = -4, max = 1, default = 0, 1/5.12/100 },
             action = function(v) engine.crinkle(v) end
         }
         ctl {
