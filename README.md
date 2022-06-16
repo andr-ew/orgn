@@ -20,9 +20,6 @@ a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
 in maiden, head to the books, refresh community catalog, install orgn, then run SYSTEM > RESTART to boot the new engine
 
-***POSSIBLE STROBE WARINING*** on the screen graphics for this script. I'll add an option to disable the graphics as soon as I get a chance
-
-
 # documentation
 
 orgn is a 3-operator FM synthesizer followed by an FX engine which loosley emulates yamaha's ultra-cheap range of consumer keyboards from the 80's & 90's - the PortaSound series. whereas these keyboards were locked into 100 or so sometimes corny factory presets (with a catchy demo song to match), orgn gives you full control over the synthesis & fx engines. you can also process external signals through the FX via the norns inputs.
