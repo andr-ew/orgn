@@ -32,6 +32,7 @@ local h = { gfx = (split.y - mar.left - mar.right) / div.y.gfx - gap*2 }
 function App.grid(args)
     local wide = args.wide or false
     local varibright = args.varibright or true
+    local no_last_row = args.no_last_row
 
     local hl = { 4, 15 }
 
@@ -88,10 +89,10 @@ function App.grid(args)
             controlspec = of.controlspec('ramp')
         }
     end)
+    local lr = no_last_row and 0 or 1
     local _keymap = to.pattern(mpat, 'keymap', Grid.momentary, function()
-        --TODO: keyboard height arg
         return {
-            x = wide and { 1, 15 } or { 1, 8 }, y = wide and { 4, 8 } or { 3, 8 },
+            x = wide and { 1, 15 } or { 1, 8 }, y = wide and { 4, 7 + lr } or { 3, 7 + lr },
             count = params:get('voicing') == 2 and 1 or 8, 
             lvl = function(_, x, y)
                 return tune.is_tonic(x, y, params:get('scale_preset')) 
@@ -118,15 +119,7 @@ function App.grid(args)
             clock = true,
             state = { params:get('scale_preset') },
             action = function(v, t, d, add, rem)
-                print(add, rem)
                 params:set('scale_preset', v)
-
-                nest.grid.make_dirty()
-
-                if add then clock.sleep(0.2) end
-                scale_focus = add ~= nil
-
-                nest.screen.make_dirty()
             end
         }
     end)
@@ -163,7 +156,7 @@ function App.grid(args)
         _ramp()
         
         _patrec{
-            x = wide and 16 or { 1, 2 }, y = wide and { 1, 8 } or 2, 
+            x = wide and 16 or { 1, 2 }, y = wide and { 4, 7 + lr } or 2, 
             pattern = pattern, varibright = varibright,
         }
     

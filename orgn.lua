@@ -1,8 +1,7 @@
---  ===== ===== ===== =   =
---  =   = =   = =     ==  =
---  =   = ====  =  == = = =
---  =   = =  =  =   = =  ==
---  ===== =   = ===== =   =
+--  ======  ======   ======  ==   =
+-- =      = =     = =        = =  =
+-- =      = ======  =     == =  = =
+--  ======  =     =  ======  =   ==
 --
 -- a 3-operator FM synth with 
 -- fx. inspired by yamaha 
@@ -56,7 +55,7 @@ tune.setup { presets = 8, scales = include 'orgn/lib/tune/scales' }
 
 orgn, orgn_gfx = include 'orgn/lib/orgn'      --engine params & graphics
 demo = include 'orgn/lib/demo'                --egg
-Orgn = include 'orgn/lib/ui'                  --nest UI components (norns screen / grid)
+Orgn = include 'orgn/lib/ui'                  --nest v2 UI components (norns screen / grid)
 map = include 'orgn/lib/params'               --create script params
 m = include 'orgn/lib/midi'                   --midi keyboard input
 
@@ -87,7 +86,7 @@ local _app = {
     norns = Orgn.norns(),
 }
 
-nest.connect_grid(_app.grid, grid.connect(), 240)
+nest.connect_grid(_app.grid, g, 240)
 nest.connect_enc(_app.norns)
 nest.connect_key(_app.norns)
 nest.connect_screen(_app.norns, 24)
