@@ -20,9 +20,6 @@ a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
 in maiden, head to the books, refresh community catalog, install orgn, then run SYSTEM > RESTART to boot the new engine
 
-***POSSIBLE STROBE WARINING*** on the screen graphics for this script. I'll add an option to disable the graphics as soon as I get a chance
-
-
 # documentation
 
 orgn is a 3-operator FM synthesizer followed by an FX engine which loosley emulates yamaha's ultra-cheap range of consumer keyboards from the 80's & 90's - the PortaSound series. whereas these keyboards were locked into 100 or so sometimes corny factory presets (with a catchy demo song to match), orgn gives you full control over the synthesis & fx engines. you can also process external signals through the FX via the norns inputs.
@@ -95,11 +92,11 @@ the default mappings, along with the controls available on the grid, are designe
 - **samples**: this sets the samplerate of the fx engine, which is sort of like the framerate of a video game. lowering the sample rate leads to distortions and high pitched aliasing tones.
 - **bits**: bits affects the bit depth of the effected signal, kind of like the resolution of your orgn SNES rom. audibly, it's a square-wave like distortion with digital noise tied to the dynamics of the input
 
-  from the params menu you can alter a few more characteristics of the fx engine, but those are all a bit mysterious, and sometimes explosive (!)
+from the params menu you can alter a few more characteristics of the fx engine, but those are all a bit mysterious :)
 
 ## tuning
 
-by default, the keyboard section of the grid will be tuned to C major pentatonic, with an octave between rows. there are quite a few tuning options available however, including just intonnation, arabic maqam, and many options for custom scales. these are organized into 4 scale presets which can be recalled on the grid. hold a **scale** key or **K1** to enter the tuning screen.
+by default, the keyboard section of the grid will be tuned to C major pentatonic, with an octave between rows. there are quite a few tuning options available however, including just intonnation, arabic maqam, and many options for custom scales. these are organized into 4 scale presets which can be recalled on the grid. hold **K1** to enter the tuning screen.
 
 <br>
 <p align="center">
@@ -126,23 +123,21 @@ there are five pattern recorders rightmost on the grid. these can record & loop 
 - double tap: overdub pattern
 - hold: clear pattern
 
-# combos
-
-although it can pull its weight as a solo instrument - orgn was originally imagined as a companion to audio looping instruments like [wrms](https://github.com/andr-ew/wrms) or [anachronism](https://github.com/andr-ew/prosody#anachronsim). pure tones & textures facilitate layering while on-grid controls and macro mapping allows one to speedily morph patches for each new layer of a loop. while I personally use two norns for this kind of setup, I'll be maintaining a short list of "combo" scripts that put the orgn engine & grid interface in the background of another norns script utilizing softcut. midi mapping is encouraged in these cases as you'll no longer have access to on-screen encoder controls.
-
-combo scripts may be installed separately via the maiden catalog. both scripts will need to be installed first.
-
-- **orgnwrms**: orgn + wrms. connected 128 or 64 grids are mapped to orgn.
-
 # API docs
 
 (forthcoming)
 
-there are some neat features of the engine not used in this script which I also haven't fully tested
-- multitimbral support: any command can address all voices or just a single voice at a time
-- full ADSR envelope per-operator: these are parametized as one macro ASR envelope with span on the lua side
-- line envelope per-voice
-- you can probably use it as a drum machine
+# adding orgn + midi input to a softcut-based script
+
+first, add this snippet to the main body of the script, not inside of the init function
+```
+orgn = include 'orgn/lib/orgn'
+orgn.params()
+include 'orgn/lib/midi'
+
+engine.name = "Orgn"
+```
+you'll want to make sure that the host script uses neither midi keyboard input or an engine of it's own. if it does, be sure to comment out any lines that have to do with those.
 
 # thanks to
 
@@ -155,16 +150,3 @@ for various code snippets & jumping off points for the effects engine
 - trent gil
 
 for inspiration on FM & envelope parametization (w/ synth & just friends)
-
-# future maybe
-
-known bugs / issues
-- currently i don't have a polyphony limit implemented -- in transient mode with longer envelopes it can be pretty easy to blow up the engine
-- there are some performance issues, sadly. this can be noticeable when playing quickly, uhh, sometimes? restarting the script always seems to get things back to normal. optimization is a weak spot for me so it's going to take me time to sort this out.
-- still not really happy with the fine tuning on span, oh well
-
-roadmap
-- option to disable screen graphics
-- encoder quick mapping
-- global PM scaler
-- arc support

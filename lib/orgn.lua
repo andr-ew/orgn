@@ -1,7 +1,3 @@
---TODO
---add noteCycle, noteCyleGlide
---add env 'cyle' mode
-
 local cs = require 'controlspec'
 
 local envgraph = include 'orgn/lib/envgraph' -- modified version
@@ -12,29 +8,28 @@ local spo = tab.invert(ops)
 local orgn = { params = {} }
 
 local ids = {}
-local vc = 'all'
-local cb = function(id, v) end
 local last = 440
 local last_id = nil
 local glide = 0
 local spread = 0
-local voicing = 'poly'
 local mode = 'sustain'
 local ratio = { 1, 2, 4 }
 local lvl = { 1, 0.5, 0 }
 
+local gfx
+
 -- adsr mixer object
 local adsr = { a = {}, d = {}, s = {}, r = {}, c = -4, min = 0.001,
     update = function(s, ds)
-        engine.batch('attack', vc, table.unpack(s.a))
+        engine.batch('attack', table.unpack(s.a))
         if s.ds then
-            engine.batch('decay', vc, table.unpack(s.d))
-            engine.batch('sustain', vc, table.unpack(s.s))
+            engine.batch('decay', table.unpack(s.d))
+            engine.batch('sustain', table.unpack(s.s))
         end
-        engine.batch('release', vc, table.unpack(s.r))
-        engine.curve(vc, s.c)
+        engine.batch('release', table.unpack(s.r))
+        engine.curve(s.c)
         
-        orgn.gfx.env:update()
+        gfx.env:update()
     end
 }
 for i, op in ipairs(ops) do
@@ -45,7 +40,7 @@ for i, op in ipairs(ops) do
 end
 
 local fps = 30
-orgn.gfx = {
+gfx = {
     env = {
         graph = {},
         init = function(s, x, y, w, h, env)
@@ -173,7 +168,7 @@ local pitch = {
     mod = 0,
     oct = 0,
     update = function(s)
-        engine.pitch(vc, (2^(s.off) * (2^s.oct)) + s.mod/2)
+        engine.pitch((2^(s.off) * (2^s.oct)) + s.mod/2)
     end
 }
 local lfo = { 
@@ -205,24 +200,23 @@ end
 local function hz2st(h) return 12*math.log(h/440, 2) end
 
 orgn.noteOn = function(id, hz, vel)
-    i = voicing == 'mono' and 'm' or id
+    local i = voicing == 'mono' and -1 or id
+    local pan = math.random() * spread * (math.random() > 0.5 and -1 or 1)
 
-    engine.pan(i, math.random() * spread * (math.random() > 0.5 and -1 or 1))
-    
-    local d = hz2st(hz) - hz2st(last)
-    d = util.linexp(0, 76, 0.01, 1.2, math.abs(d))
+    --local d = hz2st(hz) - hz2st(last)
+    --d = util.linexp(0, 76, 0.01, 1.2, math.abs(d))
     local t = glide 
         + (math.random() * 0.2) 
         -- + ((d < math.huge) and d or 0)
 
     if mode == 'sustain' and glide <= 0 then
-        engine.noteOn(i, hz, vel)
+        engine.noteOn(i, hz, vel, pan)
     elseif mode == 'sustain' and glide > 0 then
-        engine.noteGlide(i, last, hz, t, vel)
+        engine.noteGlide(i, last, hz, t, vel, pan)
     elseif mode == 'transient' and glide <= 0 then
-        engine.noteTrig(i, hz, vel, math.max(adsr.a[1], 0.01))
+        engine.noteTrig(i, hz, vel, pan, math.max(adsr.a[1], 0.01))
     elseif mode == 'transient' and glide > 0 then
-        engine.noteTrigGlide(i, last, hz, t, vel, adsr.a[1])
+        engine.noteTrigGlide(i, last, hz, t, vel, pan, adsr.a[1])
     end
 
     last = hz
@@ -232,7 +226,7 @@ end
 orgn.noteOff = function(id)
     if voicing == 'mono' then
         if id == last_id then
-            engine.noteOff('m')
+            engine.noteOff(-1)
         end
     elseif mode == 'sustain' then
         engine.noteOff(id)
@@ -242,42 +236,18 @@ end
 -- param:add wrapper with some shortcuts
 local function ctl(arg)
     arg.id = arg.id or string.gsub(arg.name, ' ', '_')
-    if vc ~= 'all' then arg.id = arg.id .. '_' .. vc end
     arg.type = arg.type or 'control'
-
-    local a = arg.action or function() end
-    arg.action = function(v) 
-        a(v)
-        cb(arg.id, v)
-    end
 
     params:add(arg)
     table.insert(ids, arg.id)
 end
 
--- voice:
--- 'all': add param control over all voices (for using the engine as a single polysynth)
--- <number>: add params for this voice only
---
--- env:
--- 'asr': control over attack & release
--- 'adsr': full control of the adsr envelope
---
--- envstyle:
--- 'linked': single controls with span across operators
--- 'independent': unique control per-operator
---
--- callback: runs at the end of evey action function (args: id, value)
-orgn.params.synth = function(voice, env, envstyle, callback)
-    voice = voice or 'all'
-    env = env  or 'asr'
+orgn.params = function(env, envstyle, fxstyle)
+    env = env or 'asr'
     envstyle = envstyle or 'linked'
 
     -- ids = {}
-    cb = callback or cb
     
-    vc = voice
-
     --mixer objects
     local ratio = { 1, 2, 4,
         dt = 0,
@@ -288,7 +258,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                 r[i] = s[i] * dt
                 ratio[i] = r[i]
             end
-            engine.batch('ratio', vc, table.unpack(r))
+            engine.batch('ratio', table.unpack(r))
         end
     }
     local amp = { 1, 0.5, 0.25,
@@ -299,7 +269,7 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                 a[i] = util.dbamp(s.l) * s[i]
                 lvl[i] = a[i]
             end
-            engine.batch('amp', vc, table.unpack(a))
+            engine.batch('amp', table.unpack(a))
         end
     }
 
@@ -377,7 +347,6 @@ orgn.params.synth = function(voice, env, envstyle, callback)
     if envstyle == 'linked' then
 
         -- env mixer
-        -- TODO: fix ramp = -1
         local emx = {
             time = 0.2, ramp = 1, curve = -4, span = 0, sustain = 0.75, 
             update = function(s)
@@ -506,55 +475,13 @@ orgn.params.synth = function(voice, env, envstyle, callback)
                     min = 0, max = 10, quantum = 0.01/10
                 },
                 action = function(v)
-                    engine.mod(vc, carrier, modulator, v)
+                    engine.mod(carrier, modulator, v)
                 end
             }
         end
     end
 
-    return ids --return table of the ids
-end
-
--- style:
--- 'simple': three controls, the rest are parametized from the "bits" control
--- 'complex': individual parameter for each control under the hood
--- callback: runs at the end of evey action function (args: id, value)
-orgn.params.fx = function(style, callback)
-    style = style or 'simple'
-    cb = callback or cb
-    -- ids = {}
-
-    --[[
-    [ gate, 0  ]
-    [ pan, 0  ]
-    [ hz, [ 440, 440, 0  ]  ]
-    [ amp, [ 1.0, 0.5, 0.25  ]  ]
-    [ velocity, 1  ]
-    [ ratio, [ 1.0, 2.0, 4.0  ]  ]
-    [ mod0, [ 0, 0, 0  ]  ]
-    [ mod1, [ 0, 0, 0  ]  ]
-    [ mod2, [ 0, 0, 0  ]  ]
-    [ attack, [ 0.001, 0.001, 0.001  ]  ]
-    [ decay, [ 0, 0, 0  ]  ]
-    [ sustain, [ 1, 1, 1  ]  ]
-    [ release, [ 0.2, 0.2, 0.2  ]  ]
-    [ curve, -4  ]
-    [ done, [ 1, 1, 1  ]  ]
-    [ outbus, 0  ]
-    [ inbus, 0.0  ]
-    [ adc_mono, 0  ]
-    [ adc_in_amp, 1  ]
-    [ bits, 11  ]
-    [ samples, 26460  ]
-    [ samples_lag, 0.2  ]
-    [ dustiness, 1.95  ]
-    [ dust, 1  ]
-    [ crinkle, 0  ]
-    [ crackle, 0.1  ]
-    [ drive, 0.025  ]
-    [ outbus, 0  ]
-    [ drywet, 1  ]
-    ]]
+    local style = fxstyle or 'complex'
 
     params:add_separator('fx')
     ctl {
@@ -604,8 +531,8 @@ orgn.params.fx = function(style, callback)
             action = function(v) engine.crackle(v) end
         }
         ctl {
-            name = 'crinkle (!)',
-            controlspec = cs.def { min = -4, max = 1.12, default = 0, 1/5.12/100 },
+            name = 'crinkle',
+            controlspec = cs.def { min = -4, max = 1, default = 0, 1/5.12/100 },
             action = function(v) engine.crinkle(v) end
         }
         ctl {
@@ -625,4 +552,4 @@ end
 
 orgn.adsr = adsr
 
-return orgn
+return orgn, gfx

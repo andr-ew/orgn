@@ -25,7 +25,7 @@ for x = 1, 15 do
     end
 end
 
-function demo.redraw(s, _, g)
+function demo.redraw(g)
     -- g:all(0) 
     for x,_ in ipairs(v) do
         for y,vv in ipairs(v[x]) do
@@ -53,7 +53,7 @@ local function g_note(id, on)
             v[x][5] = on and 1 or 0
         end
     end
-    grid_redraw()
+    nest.grid.make_dirty()
 end
 
 local loop

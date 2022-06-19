@@ -1,35 +1,55 @@
-// toy keyboard inspired fm synth + lofi effect (ulaw) - ulaw will also process ADC in.
+// toy keyboard inspired fm synth + lofi effects - effects will also process ADC in.
 
 Engine_Orgn : CroneEngine {
 
-    var <gator;
-    var <fx;
+	var <polyDef;
+    var <fxDef;
     var <fxBus;
-    var <ops = 3;
-    var <tfBuf;
-    var <compress_buf;
-    var <expand_buf;
+    var <fx;
 
-	*new { arg context, doneCallback;
-		^super.new(context, doneCallback);
+	var <maxNumVoices = 16;
+
+    var <ops = 3;
+    var <tf;
+    var <tfBuf;
+
+	var <ctlBus; // collection of control busses
+	var <gr; // parent group for voice nodes
+	var <voices; // collection of voice nodes
+
+	*new { arg context, callback;
+		^super.new(context, callback);
 	}
 
 	alloc {
+        var batchformat = '';
 
-	    //fm synth synthdef - number of operators is set by ops
-        var fmDef = SynthDef.new(\fm, {
+        //contols not to map to control busses (i.e. these are either unique for each voice or constants)
+        var doNotMap = [\gate, \glideGate, \killGate, \hz, \outbus, \pan, \velocity];
 
-            //named controls (inputs) - most are multichannel (channel per operator).
-            var gate = \gate.kr(0), pan = \pan.kr(0), hz = \hz.kr([440, 440, 0]),
+        //fm synth synthdef - number of operators is set by ops
+        polyDef = SynthDef.new(\fm, {
+
+            //named controls (inputs) - many are multichannel (channel per operator).
+            var gate = \gate.kr(1), glideGate = \glideGate.kr(1), killGate =  \killGate.kr(1),
+            pan = \pan.kr(0), hz = \hz.kr([440, 440, 0]),
             amp = \amp.kr(Array.fill(ops, { arg i; 1/(2.pow(i)) })), vel = \velocity.kr(1),
             ratio = \ratio.kr(Array.fill(ops, { arg i; (2.pow(i)) })),
             mod = Array.fill(ops, { arg i; NamedControl.kr(\mod ++ i, 0!ops) }),
         	a = \attack.kr(0.001!ops), d = \decay.kr(0!ops), s = \sustain.kr(1!ops),
             r = \release.kr(0.2!ops), curve = \curve.kr(-4),
-            done = \done.kr(1!ops); // done needs to be set based on release times (longest relsease channel gets a 1)
+            done = \done.kr(1!ops); // done needs to be set manually based on release times
 
             //hz envelope (for glides)
-            var frq = XLine.kr(hz[0], hz[1], hz[2], doneAction:0) * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
+            var start = hz[0], end = hz[1], dur = hz[2];
+            var glide = EnvGen.kr(Env.pairs([[0, start], [dur, end]], \exp), glideGate, doneAction: 0);
+            var frq = glide * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
+            //var frq = hz[1] * Lag.kr(\pitch.kr(1), \pitch_lag.kr(0.1));
+
+            //kill env for voice stealong
+			var killEnvelope = EnvGen.kr(
+                envelope: Env.asr( 0, 1, 0.01), gate: killGate + Impulse.kr(0), doneAction: Done.freeSelf
+            );
 
             //the synth sound (3 lines!!!)
         	var env = EnvGen.kr(Env.adsr(a, d, s, r, 1, curve), gate, doneAction: (done * 2)); //adsr envelopes
@@ -37,21 +57,20 @@ Engine_Orgn : CroneEngine {
         	LocalOut.ar(osc); //send oscs to the nest cycle
 
         	//pan/amp/output
-            Out.ar(\outbus.kr(0), Pan2.ar(Mix.ar((osc / ops) * amp * vel * 0.15), pan));
+            Out.ar(\outbus.kr(0), Pan2.ar(Mix.ar((osc / ops) * amp * vel * 0.15 * killEnvelope), pan));
         }).add;
 
+        //group for voices
+        gr = ParGroup.new(context.xg);
+
         //analog waveshaper table by @ganders
-        var tf = (Env([-0.7, 0, 0.7], [1,1], [8,-8]).asSignal(1025) + (
+        tf = (Env([-0.7, 0, 0.7], [1,1], [8,-8]).asSignal(1025) + (
             Signal.sineFill(
                 1025,
                 (0!3) ++ [0,0,1,1,0,1].scramble,
                     {rrand(0,2pi)}!9
                 )/10;
         )).normalize;
-
-        var batchformat = '';
-        var fxDef;
-
         tfBuf = Buffer.loadCollection(context.server, tf.asWavetableNoWrap);
 
         context.server.sync;
@@ -64,7 +83,7 @@ Engine_Orgn : CroneEngine {
                     SoundIn.ar([0,1]),
                     SoundIn.ar(0!2),
                     (\adc_mono.kr(0)*2) - 1
-                ) * \adc_in_amp.kr(1)
+                ) * \adc_in_amp.kr(0)
             ]),
             steps = 2.pow(\bits.kr(11)), r = 700,
             samps = Lag.kr(\samples.kr(26460), \samples_lag.kr(0.02));
@@ -112,100 +131,140 @@ Engine_Orgn : CroneEngine {
         fxBus = Bus.audio(context.server, 2);
         context.server.sync;
 
-        fx = Synth.new(\ulaw, args: [\inbus, fxBus]);
+        fx = Synth.new(\ulaw, args: [\inbus, fxBus], addAction: \addToTail);
 
         context.server.sync;
 
-        //gator is a multi-voice control router/voice allocator - we send it info to create synths for fmDef
-        gator = OrgnGator.new(context.server, fmDef, [\outbus, fxBus], fx, \addBefore);
+        //create voices dict
+		voices = List.new;
 
-        //gator can make most of the engine commands automatically - we send a list of *exclusions* for the conrols we're adding manually
-        gator.addCommands(this, [\hz, \mod0, \mod1, \mod2, \outbus, \done, \release]);
+        //create / initialize control busses
+		ctlBus = Dictionary.new;
+		polyDef.allControlNames.do({ arg ctl;
+			var name = ctl.name, value = ctl.defaultValue;
 
-        //then we add the controls manually - in these cases there's a bit of interpretation needed before sending values to gator
+			postln("control name: " ++ name);
 
-        //set hz instantaneously
-        this.addCommand(\hz, \sf, { arg msg;
-            var id = msg[1], hz = msg[2];
-            gator.set(\hz, id, hz, hz, 0);
-        });
+			if(doNotMap.indexOf(name).isNil, {
+                if(value.size == 0,
+                    {
+                        ctlBus.add(name -> Bus.control(context.server, 1));
+                        ctlBus[name].set(value);
+                    },{
+                        ctlBus.add(name -> Bus.control(context.server, value.size));
+                        ctlBus[name].setn(value);
+                    }
+                );
 
-        //set hz XLine arguments (start, end, dur)
-        this.addCommand(\glide, \sfff, { arg msg;
-            msg.removeAt(0);
-            gator.set(\hz, *msg);
-        });
+			});
+		});
 
-        //start a note with pitch/velocity
-        this.addCommand(\noteOn, \sff, { arg msg;
-            var id = msg[1], hz = msg[2], vel = msg[3];
-            gator.set(\velocity, id, vel);
-            gator.set(\hz, id, hz, hz, 0);
-            gator.set(\gate, id, 1);
-        });
+		ctlBus.postln;
 
-        //start a note gliding
-        this.addCommand(\noteGlide, \sffff, { arg msg;
-            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5];
-            gator.set(\velocity, id, vel);
-            gator.set(\hz, id, start, end, dur);
-            gator.set(\gate, id, 1);
-        });
+		//--------------
+		//--- voice control, all are indexed by arbitarry ID number
+		// (voice allocation should be performed by caller)
 
-        this.addCommand(\noteTrig, \sfff, { arg msg;
-            var id = msg[1], hz = msg[2], vel = msg[3], dur = msg[4];
+		// start a new voice. args: id, hz, velocity, pan
+		this.addCommand(\noteOn, "ifff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[2], dur = 0, vel = msg[3], pan = msg[4];
+            this.addVoice(id, [start, end, dur], vel, pan);
+		});
+
+        // start a new voice w/ a glide envelope. args: id, start hz, end hz, glide duration, velocity, pan
+		this.addCommand(\noteGlide, "ifffff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], pan = msg[6];
+            this.addVoice(id, [start, end, dur], vel, pan);
+		});
+
+		// stop a voice. args: id
+		this.addCommand(\noteOff, "i", { arg msg;
+			this.removeVoice(msg[1]);
+		});
+
+        // start a new voice + release after specified duration. args: id, hz, velocity, pan, duration
+        this.addCommand(\noteTrig, "iffff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[2], dur = 0, vel = msg[3], pan = msg[4], delay = msg[5];
             Routine {
-                gator.set(\velocity, id, vel);
-                gator.set(\hz, id, hz, hz, 0);
-                gator.set(\gate, id, 1);
-                dur.max(0.01).yield;
-                gator.set(\gate, msg[1], 0);
+                this.addVoice(id, [start, end, dur], vel, pan);
+                delay.max(0.01).yield;
+                this.removeVoice(id);
             }.play
         });
 
-        this.addCommand(\noteTrigGlide, \sfffff, { arg msg;
-            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], durTrig = msg[6];
+        // start a new voice + release after specified duration w/ glide envelope. args: id, start hz, end hz, glide duration, velocity, pan, duration
+        this.addCommand(\noteTrigGlide, "iffffff", { arg msg;
+            var id = msg[1], start = msg[2], end = msg[3], dur = msg[4], vel = msg[5], pan = msg[6], delay = msg[7];
             Routine {
-                gator.set(\velocity, id, vel);
-                gator.set(\hz, id, start, end, dur);
-                gator.set(\gate, id, 1);
-                durTrig.max(0.01).yield;
-                gator.set(\gate, msg[1], 0);
+                this.addVoice(id, [start, end, dur], vel, pan);
+                delay.max(0.01).yield;
+                this.removeVoice(id);
             }.play
         });
 
-        //end a note (shortcut for gate(0))
-        this.addCommand(\noteOff, \s, { arg msg;
-            gator.set(\gate, msg[1], 0);
+		// free all synths
+		this.addCommand(\stopAll, "", {
+			gr.set(\gate, 0);
+			voices.clear;
+		});
+
+		// generate commands to set each control bus
+        polyDef.allControlNames.do({ arg c;
+            var l = c.numChannels, name = c.name;
+            if((doNotMap ++ [\mod0, \mod1, \mod2, \done, \release]).indexOf(name).isNil, {
+                arg f = \,
+                cb = if(l > 1, {
+                    f = f ++ \i;
+                    { arg msg;
+                        var idx = msg[2];
+                        msg.removeAt(0);
+                        msg.removeAt(0);
+
+                        ctlBus[name].setAt(idx - 1, *msg)
+                    }
+                },
+                {
+                    { arg msg;
+                        msg.removeAt(0);
+                        ctlBus[name].setSynchronous(*msg)
+                    }
+                });
+
+                //l.do({ f = f ++ \f; });
+                f = f ++ \f;
+                this.addCommand(name, f, cb);
+            });
         });
 
         //combine mod0/mod1/mod2 into a single mod command
-        this.addCommand(\mod, \siif, { arg msg;
-            var id = msg[1], modulator = msg[3], carrier = msg[2], amt = msg[4];
-            gator.setAt((\mod ++ (carrier - 1)).asSymbol, id, modulator, amt);
+        this.addCommand(\mod, \iif, { arg msg;
+            var modulator = msg[2], carrier = msg[1], amt = msg[3];
+
+            ctlBus[(\mod ++ (carrier - 1)).asSymbol].setAt(modulator - 1, amt);
         });
 
         //the release command must manually set the doneAction for each operator via \done
-        this.addCommand(\release, \sif, { arg msg;
-            var id = msg[1], rel, done, max, idx;
-            gator.setAt(\release, *msg);
-            rel = gator.get(\release, \all);
-            done = 0!(rel.size);
-            max = 0; idx = 0;
-            rel.do({ arg v, i; if(v > max, { max = v; idx = i; }) });
-            done[idx] = 1;
-            gator.set(\done, \all, *done);
+        this.addCommand(\release, \if, { arg msg;
+            var idx = msg[1], amt = msg[2];
+
+            ctlBus[\release].setAt(idx - 1, amt);
+            this.updateDone();
         });
 
-        ops.do({
-            batchformat = batchformat ++ \f;
-        });
+        ops.do({ batchformat = batchformat ++ \f; });
 
         //set a control for all operators in one go
-        this.addCommand(\batch, \ss ++ batchformat, { arg msg;
-            msg[1] = msg[1].asSymbol;
+        this.addCommand(\batch, \s ++ batchformat, { arg msg;
+            var name = msg[1].asSymbol;
             msg.removeAt(0);
-            gator.set(*msg);
+            msg.removeAt(0);
+
+            if(ctlBus[name].notNil, {
+                msg.postln;
+                ctlBus[name].setSynchronous(*msg);
+
+                if(name == \release, { this.updateDone(); });
+            });
         });
 
         //auto-add fx commands
@@ -216,18 +275,77 @@ Engine_Orgn : CroneEngine {
 
         //print synth default values - will be useful when I'm making the controlspecs
         "synth control defaults:".postln;
-        (fmDef.allControlNames ++ fxDef.allControlNames).do({ arg c;
+        (polyDef.allControlNames ++ fxDef.allControlNames).do({ arg c;
             [c.name, c.defaultValue].postln;
         });
 	}
 
+    //start a new voice at an id
+	addVoice { arg id, hz, vel, pan;
+        var params = List.with(\outbus, fxBus, \hz, hz, \velocity, vel, \pan, pan);
+
+        var voiceAtId = voices.detect{arg v; v.id == id};
+
+		if(voiceAtId.notNil, {
+            //behavior: retrigger glide envelope, don't retrigger operator envelopes
+            Routine {
+                voiceAtId['synth'].set(\gate, 1);
+                voiceAtId['synth'].set(\hz, hz);
+                voiceAtId['synth'].set(\glideGate, -1);
+                context.server.sync;
+
+                voiceAtId['synth'].set(\glideGate, 1);
+            }.play
+		}, {
+            var synth, voice;
+
+            //kill last voice if hitting limit
+			if(voices.size >= maxNumVoices, {
+                voices.last['synth'].set(\killGate, 0);
+                ('kill voice ' ++ voices.last['id']).postln;
+            });
+
+            ctlBus.keys.do({ arg name;
+                params.add(name);
+                params.add(ctlBus[name].getnSynchronous(ctlBus[name].numChannels));
+            });
+
+            synth = Synth.new(\fm, params, gr);
+            voice = (id: id, synth: synth);
+            voices.addFirst(voice);
+
+            NodeWatcher.register(synth);
+            synth.onFree({ voices.remove(voice); });
+
+            ctlBus.keys.do({ arg name;
+                synth.map(name, ctlBus[name]);
+            });
+		});
+	}
+
+    //remove voice at id
+	removeVoice { arg id;
+        var voice = voices.detect{arg v; v.id == id};
+        if(voice.notNil, { voice['synth'].set(\gate, 0); });
+    }
+
+    //update which envelope frees the voice (the longest one)
+    updateDone {
+        var rel = ctlBus[\release].getnSynchronous(ctlBus[\release].numChannels);
+        var done = 0!(rel.size);
+        var max = 0, idx = 0;
+
+        rel.do({ arg v, i; if(v > max, { max = v; idx = i; }) });
+        done[idx] = 1;
+
+        ctlBus[\done].setSynchronous(*done);
+    }
+
 	free {
-	    //free gator, fx synth, fx bus, buffers
-	    gator.free;
-		fx.free;
+		gr.free;
+		ctlBus.do({ arg bus, i; bus.free; });
+        fx.free;
 		fxBus.free;
         tfBuf.free;
-        compress_buf.free;
-        expand_buf.free;
 	}
 }
