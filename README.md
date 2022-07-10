@@ -11,8 +11,8 @@ a 3-operator FM synth with fx. inspired by yamaha portasound keyboards
 
 ### requirements
 
-- norns (210927 or later)
-- grid (any size) or midi keyboard
+- [norns](https://github.com/p3r7/awesome-monome-norns) (210927 or later)
+- [grid](https://monome.org/docs/grid/) (any size) or midi keyboard
 - audio input (optional)
 - midi mapping encouraged
 
