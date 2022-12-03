@@ -146,30 +146,38 @@ function App.grid(args)
             _ratio.b()
             _ratio.a()
         end
-        _oct.up()
-        _oct.down()
-        if wide then
-            _voicing() 
-            _scale()
-        end
-        _mode()
-        _ramp()
         
-        _patrec{
-            x = wide and 16 or { 1, 2 }, y = wide and { 4, 7 + lr } or 2, 
-            pattern = pattern, varibright = varibright,
-        }
-    
-        if demo.playing() then 
-            _demo()
-        else
-            if scale_focus then
-                _scale_degrees{ preset = params:get('scale_preset') }
-                _tonic{ preset = params:get('scale_preset') }
+        local gx, gy, gz = nest.grid.input_args()
+
+        --these if statments are a hack to fix superfluous pattern watch events when interacting with the PatternRecorder components
+        if (nest.render.mode == 'redraw') or (gx < 16) then
+            _oct.up()
+            _oct.down()
+            if wide then
+                _voicing() 
+                _scale()
+            end
+            _mode()
+            _ramp()
+
+            if demo.playing() then 
+                _demo()
             else
-               _keymap()
+                if scale_focus then
+                    _scale_degrees{ preset = params:get('scale_preset') }
+                    _tonic{ preset = params:get('scale_preset') }
+                else
+                   _keymap()
+                end
             end
         end
+        if (nest.render.mode == 'redraw') or (gx >= 16) then
+            _patrec{
+                x = wide and 16 or { 1, 2 }, y = wide and { 4, 7 + lr } or 2, 
+                pattern = pattern, varibright = varibright,
+            }
+        end
+
     end
 end
 
