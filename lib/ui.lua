@@ -147,6 +147,9 @@ function App.grid(args)
             _ratio.a()
         end
         
+        _mode()
+        _ramp()
+        
         local gx, gy, gz = nest.grid.input_args()
 
         --these if statments are a hack to fix superfluous pattern watch events when interacting with the PatternRecorder components
@@ -157,8 +160,6 @@ function App.grid(args)
                 _voicing() 
                 _scale()
             end
-            _mode()
-            _ramp()
 
             if demo.playing() then 
                 _demo()
