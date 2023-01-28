@@ -7,7 +7,7 @@ Engine_Orgn : CroneEngine {
     var <fxBus;
     var <fx;
 
-	var <maxNumVoices = 16;
+	var <maxNumVoices = 4;
 
     var <ops = 3;
     var <tf;

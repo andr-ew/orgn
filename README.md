@@ -43,7 +43,7 @@ the default mappings, along with the controls available on the grid, are designe
 
 - **amp [a/b/c]**: the amplitude or volume of the three sine waves in the synth voice
 
-  by default, the amplitutes are:
+  by default, the amplitudes are:
 
   | a | b | c |
   | - | - | - |

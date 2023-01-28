@@ -105,9 +105,29 @@ function App.grid(args)
                 local vel = math.random()*0.2 + 0.85
 
                 local hz = 440 * tune.hz(k.x, k.y, nil, nil, params:get('scale_preset'))
+                local midi_note = mu.freq_to_note_num (hz*orgn.get_pitch())
+                  
+                if add then 
+                  orgn.noteOn(id, hz, vel)
 
-                if add then orgn.noteOn(id, hz, vel)
-                elseif rem then orgn.noteOff(id) end
+                  -- Grab the chosen nb voice's player off your param
+                  local player1 = params:lookup_param("nb_voice1"):get_player()
+                  local player2 = params:lookup_param("nb_voice2"):get_player()
+                  player1:note_on(midi_note, vel) 
+                  player2:note_on(midi_note, vel) 
+                  -- Play a note (id) at velocity (vel) for 0.2 beats (according to the norns clock)
+                  -- player1:play_note(midi_note, vel, 2) 
+                  -- player2:play_note(midi_note, vel, 2) 
+
+                elseif rem then 
+                  orgn.noteOff(id) 
+
+                  -- Grab the chosen nb voice's player off your param
+                  local player1 = params:lookup_param("nb_voice1"):get_player()
+                  local player2 = params:lookup_param("nb_voice2"):get_player()
+                  player1:note_off(midi_note) 
+                  player2:note_off(midi_note) 
+                end
             end
         }
     end)
@@ -146,39 +166,30 @@ function App.grid(args)
             _ratio.b()
             _ratio.a()
         end
-        
+        _oct.up()
+        _oct.down()
+        if wide then
+            _voicing() 
+            _scale()
+        end
         _mode()
         _ramp()
         
-        local gx, gy, gz = nest.grid.input_args()
-
-        --these if statments are a hack to fix superfluous pattern watch events when interacting with the PatternRecorder components
-        if (nest.render.mode == 'redraw') or (gx < 16) then
-            _oct.up()
-            _oct.down()
-            if wide then
-                _voicing() 
-                _scale()
-            end
-
-            if demo.playing() then 
-                _demo()
+        _patrec{
+            x = wide and 16 or { 1, 2 }, y = wide and { 4, 7 + lr } or 2, 
+            pattern = pattern, varibright = varibright,
+        }
+    
+        if demo.playing() then 
+            _demo()
+        else
+            if scale_focus then
+                _scale_degrees{ preset = params:get('scale_preset') }
+                _tonic{ preset = params:get('scale_preset') }
             else
-                if scale_focus then
-                    _scale_degrees{ preset = params:get('scale_preset') }
-                    _tonic{ preset = params:get('scale_preset') }
-                else
-                   _keymap()
-                end
+               _keymap()
             end
         end
-        if (nest.render.mode == 'redraw') or (gx >= 16) then
-            _patrec{
-                x = wide and 16 or { 1, 2 }, y = wide and { 4, 7 + lr } or 2, 
-                pattern = pattern, varibright = varibright,
-            }
-        end
-
     end
 end
 
