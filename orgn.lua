@@ -43,6 +43,7 @@ Key, Enc = include 'lib/nest/norns'
 Text = include 'lib/nest/text'
 Grid = include 'lib/nest/grid'
 
+
 multipattern = include 'lib/nest/util/pattern-tools/multipattern'
 of = include 'lib/nest/util/of'
 to = include 'lib/nest/util/to'
@@ -58,6 +59,9 @@ demo = include 'orgn/lib/demo'                --egg
 Orgn = include 'orgn/lib/ui'                  --nest v2 UI components (norns screen / grid)
 map = include 'orgn/lib/params'               --create script params
 m = include 'orgn/lib/midi'                   --midi keyboard input
+
+--nb lib or orgn
+nb = include 'orgn/lib/nb/lib/nb'
 
 engine.name = "Orgn"
 
@@ -94,12 +98,23 @@ nest.connect_screen(_app.norns, 24)
 --init/cleanup
 
 function init()
+    print("orgn init")
     orgn.init()
     params:read()
     params:set('demo start/stop', 0)
-    params:bang()
-end
 
+    nb:init()
+    params:add_separator("externals")
+		-- nb:add_param("voice_t"..t, "OUTPUT")
+		nb:add_param("nb_voice1", "OUTPUT1")
+		nb:add_param("nb_voice2", "OUTPUT2")
+    params:add_separator("VOICE CONTROLS")
+    nb:add_player_params()
+  
+
+    params:bang()
+
+end
 function cleanup() 
     params:write()
 end

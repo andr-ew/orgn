@@ -167,10 +167,17 @@ local pitch = {
     off = 0,
     mod = 0,
     oct = 0,
+    p = 2,
     update = function(s)
-        engine.pitch((2^(s.off) * (2^s.oct)) + s.mod/2)
+        s.p = (2^(s.off) * (2^s.oct)) + s.mod/2
+        engine.pitch(s.p)
     end
 }
+
+orgn.get_pitch = function ()
+  return pitch.p
+end
+
 local lfo = { 
     rate = 0.4, mul = 0, phase = 0, quant = 0.05,
     shape = function(p) return math.sin(2 * math.pi * p) end,
