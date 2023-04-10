@@ -43,10 +43,10 @@ function App.grid(args)
                 state = of.param('ratio_c')
             }
         end),
-        b = wide and to.pattern(mpat, 'ratio_b', Grid.number, function()
+        b = to.pattern(mpat, 'ratio_b', Grid.number, function()
             return {
-                x = { 1, 16 }, y = 2,
-                state = of.param('ratio_b')
+                x = wide and { 1, 16 } or { 1, 2 }, y = 2,
+                state = of.param('ratio_b' or { 1, 2 })
             }
         end),
         a = wide and to.pattern(mpat, 'ratio_a', Grid.number, function()
@@ -142,8 +142,8 @@ function App.grid(args)
 
     return function(props)
         _ratio.c()
+        _ratio.b()
         if wide then
-            _ratio.b()
             _ratio.a()
         end
         
@@ -172,13 +172,13 @@ function App.grid(args)
                 end
             end
         end
-        if (nest.render.mode == 'redraw') or (gx >= 16) then
+
+        if wide and ((nest.render.mode == 'redraw') or (gx >= 16)) then
             _patrec{
                 x = wide and 16 or { 1, 2 }, y = wide and { 4, 7 + lr } or 2, 
                 pattern = pattern, varibright = varibright,
             }
         end
-
     end
 end
 
