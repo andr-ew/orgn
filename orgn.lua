@@ -96,10 +96,12 @@ nest.connect_screen(_app.norns, 24)
 function init()
     orgn.init()
     params:read()
+    tune.read(norns.state.data..'tune.data')
     params:set('demo start/stop', 0)
     params:bang()
 end
 
 function cleanup() 
     params:write()
+    tune.write(norns.state.data)
 end
