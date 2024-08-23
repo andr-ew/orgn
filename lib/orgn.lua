@@ -219,6 +219,11 @@ orgn.noteOn = function(id, hz, vel)
         engine.noteTrigGlide(i, last, hz, t, vel, pan, adsr.a[1])
     end
 
+    local volts = math.log(hz/440, 2) + (9/12) --converting hz to volts, very stupid
+    local level = 3.5 -- 0-5, increase for louder
+
+    crow.ii.jf.play_note(volts, vel * level)
+
     last = hz
     last_id = id
 end
@@ -231,6 +236,11 @@ orgn.noteOff = function(id)
     elseif mode == 'sustain' then
         engine.noteOff(id)
     end
+
+    local volts = math.log(hz/440, 2) + (9/12) --converting hz to volts, very stupid
+    local level = 3.5 -- 0-5, increase for louder
+
+    crow.ii.jf.play_note(volts, 0)
 end
 
 -- param:add wrapper with some shortcuts
