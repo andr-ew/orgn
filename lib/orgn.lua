@@ -199,6 +199,10 @@ end
 
 local function hz2st(h) return 12*math.log(h/440, 2) end
 
+crow.ii.jf.mode(1) -- synth mode
+
+local note_volts = {} -- table of voltages i'll need later
+
 orgn.noteOn = function(id, hz, vel)
     local i = voicing == 'mono' and -1 or id
     local pan = math.random() * spread * (math.random() > 0.5 and -1 or 1)
@@ -219,6 +223,14 @@ orgn.noteOn = function(id, hz, vel)
         engine.noteTrigGlide(i, last, hz, t, vel, pan, adsr.a[1])
     end
 
+    local volts = note_volts[id] or math.log(hz/440, 2) + (9/12) --converting hz to volts, very stupid
+    local level = 3.5 -- 0-5, increase for louder
+
+    note_volts[id] = volts
+
+    crow.ii.jf.play_note(volts, vel * level)
+    print(volts, vel * level)
+
     last = hz
     last_id = id
 end
@@ -231,6 +243,8 @@ orgn.noteOff = function(id)
     elseif mode == 'sustain' then
         engine.noteOff(id)
     end
+
+    crow.ii.jf.play_note(note_volts[id], 0)
 end
 
 -- param:add wrapper with some shortcuts
